@@ -1,0 +1,20 @@
+plugins {
+    id 'java-test-fixtures'
+}
+
+dependencies {
+    testFixturesApi project(':messaging-core')
+    testFixturesApi platform(libs.junit.bom)
+    testFixturesApi libs.junit.jupiter
+    testFixturesApi libs.assertj.core
+    testFixturesApi libs.awaitility
+
+    testImplementation project(':messaging-core')
+    testImplementation libs.junit.platform.launcher
+}
+
+test {
+    filter {
+        excludeTestsMatching 'com.messaging.conformance.faulty.*Conformance'
+    }
+}

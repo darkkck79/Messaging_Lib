@@ -1,0 +1,44 @@
+subprojects {
+    apply plugin: 'java-library'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation platform(libs.junit.bom)
+        testImplementation libs.junit.jupiter
+        testImplementation libs.assertj.core
+        testImplementation libs.mockito.core
+        testImplementation libs.mockito.junit.jupiter
+        testImplementation libs.awaitility
+        testRuntimeOnly libs.logback.classic
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+
+        addTestListener(new TestListener() {
+            void beforeSuite(TestDescriptor suite) {}
+            void afterSuite(TestDescriptor suite, TestResult result) {}
+            void beforeTest(TestDescriptor testDescriptor) {}
+            void afterTest(TestDescriptor testDescriptor, TestResult result) {
+                if (result.resultType == TestResult.ResultType.SKIPPED) {
+                    throw new GradleException(
+                        "SKIPPED tests are failures: ${testDescriptor.className}.${testDescriptor.name}")
+                }
+            }
+        })
+
+        testLogging {
+            events 'passed', 'skipped', 'failed'
+            showStandardStreams = true
+        }
+    }
+}
