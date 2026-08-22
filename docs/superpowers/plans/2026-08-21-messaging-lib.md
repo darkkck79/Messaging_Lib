@@ -154,7 +154,7 @@ Messaging_Lib/
 - Consumes: Nothing
 - Produces: Compilable multi-module Gradle project with `./gradlew build` passing on empty modules
 
-- [ ] **Step 1: Generate Gradle wrapper**
+- [-] **Step 1: Generate Gradle wrapper**
 
 ```powershell
 # If gradle is not on PATH, install temporarily:
@@ -166,7 +166,7 @@ gradle wrapper --gradle-version 8.14.3
 
 Verify `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties` exist and properties contain `gradle-8.14.3-bin.zip`.
 
-- [ ] **Step 2: Update .gitignore**
+- [-] **Step 2: Update .gitignore**
 
 ```gitignore
 # Gradle
@@ -188,7 +188,7 @@ Thumbs.db
 .DS_Store
 ```
 
-- [ ] **Step 3: Create version catalog**
+- [-] **Step 3: Create version catalog**
 
 `gradle/libs.versions.toml`:
 ```toml
@@ -228,7 +228,7 @@ artemis-server = { module = "org.apache.activemq:artemis-server", version.ref = 
 ibm-mq-jakarta-client = { module = "com.ibm.mq:com.ibm.mq.jakarta.client", version.ref = "ibm-mq" }
 ```
 
-- [ ] **Step 4: Create root build.gradle**
+- [-] **Step 4: Create root build.gradle**
 
 ```groovy
 plugins {
@@ -281,7 +281,7 @@ subprojects {
 }
 ```
 
-- [ ] **Step 5: Create settings.gradle**
+- [-] **Step 5: Create settings.gradle**
 
 ```groovy
 rootProject.name = 'Messaging_Lib'
@@ -293,7 +293,7 @@ include 'messaging-kafka'
 include 'messaging-codec-json'
 ```
 
-- [ ] **Step 6: Create messaging-core/build.gradle**
+- [-] **Step 6: Create messaging-core/build.gradle**
 
 ```groovy
 dependencies {
@@ -301,7 +301,7 @@ dependencies {
 }
 ```
 
-- [ ] **Step 7: Create messaging-conformance/build.gradle**
+- [-] **Step 7: Create messaging-conformance/build.gradle**
 
 ```groovy
 plugins {
@@ -326,7 +326,7 @@ test {
 }
 ```
 
-- [ ] **Step 8: Create messaging-jms/build.gradle**
+- [-] **Step 8: Create messaging-jms/build.gradle**
 
 ```groovy
 sourceSets {
@@ -368,7 +368,7 @@ tasks.register('integrationTest', Test) {
 check.dependsOn integrationTest
 ```
 
-- [ ] **Step 9: Create messaging-kafka/build.gradle**
+- [-] **Step 9: Create messaging-kafka/build.gradle**
 
 ```groovy
 sourceSets {
@@ -409,7 +409,7 @@ tasks.register('integrationTest', Test) {
 check.dependsOn integrationTest
 ```
 
-- [ ] **Step 10: Create messaging-codec-json/build.gradle**
+- [-] **Step 10: Create messaging-codec-json/build.gradle**
 
 ```groovy
 dependencies {
@@ -418,12 +418,12 @@ dependencies {
 }
 ```
 
-- [ ] **Step 11: Verify the skeleton compiles**
+- [-] **Step 11: Verify the skeleton compiles**
 
 Run: `.\gradlew.bat build`
 Expected: BUILD SUCCESSFUL (all modules compile, no tests yet)
 
-- [ ] **Step 12: Run `/simplify` and commit**
+- [-] **Step 12: Run `/simplify` and commit**
 
 ```powershell
 git add -A
