@@ -1,0 +1,4 @@
+dependencies {
+    api project(':messaging-core')
+    api libs.jackson.databind
+}

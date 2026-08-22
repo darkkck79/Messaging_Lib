@@ -1,0 +1,36 @@
+sourceSets {
+    integrationTest {
+        java.srcDir 'src/integrationTest/java'
+        resources.srcDir 'src/integrationTest/resources'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    api project(':messaging-core')
+    api libs.kafka.clients
+
+    integrationTestImplementation testFixtures(project(':messaging-conformance'))
+    integrationTestImplementation platform(libs.testcontainers.bom)
+    integrationTestImplementation libs.testcontainers.junit.jupiter
+    integrationTestImplementation libs.testcontainers.kafka
+    integrationTestImplementation libs.testcontainers.toxiproxy
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs conformance suite against real Kafka brokers.'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter test
+    systemProperty 'junit.jupiter.execution.timeout.default', '120s'
+}
+
+check.dependsOn integrationTest

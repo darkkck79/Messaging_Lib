@@ -1,0 +1,37 @@
+sourceSets {
+    integrationTest {
+        java.srcDir 'src/integrationTest/java'
+        resources.srcDir 'src/integrationTest/resources'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    api project(':messaging-core')
+    api libs.jakarta.jms.api
+
+    integrationTestImplementation testFixtures(project(':messaging-conformance'))
+    integrationTestImplementation platform(libs.testcontainers.bom)
+    integrationTestImplementation libs.testcontainers.junit.jupiter
+    integrationTestImplementation libs.testcontainers.toxiproxy
+    integrationTestRuntimeOnly libs.artemis.jakarta.client
+    integrationTestRuntimeOnly libs.ibm.mq.jakarta.client
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs conformance suite against real JMS brokers.'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter test
+    systemProperty 'junit.jupiter.execution.timeout.default', '120s'
+}
+
+check.dependsOn integrationTest

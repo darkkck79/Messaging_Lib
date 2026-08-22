@@ -1,0 +1,34 @@
+[versions]
+junit = "5.13.4"
+assertj = "3.27.7"
+mockito = "5.20.0"
+awaitility = "4.2.2"
+slf4j = "2.0.18"
+logback = "1.5.20"
+jakarta-jms = "3.1.0"
+kafka = "3.9.2"
+jackson = "2.19.4"
+testcontainers = "1.21.4"
+artemis = "2.43.0"
+ibm-mq = "9.4.5.1"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+jakarta-jms-api = { module = "jakarta.jms:jakarta.jms-api", version.ref = "jakarta-jms" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
+testcontainers-kafka = { module = "org.testcontainers:kafka" }
+testcontainers-toxiproxy = { module = "org.testcontainers:toxiproxy" }
+artemis-jakarta-client = { module = "org.apache.activemq:artemis-jakarta-client", version.ref = "artemis" }
+artemis-server = { module = "org.apache.activemq:artemis-server", version.ref = "artemis" }
+ibm-mq-jakarta-client = { module = "com.ibm.mq:com.ibm.mq.jakarta.client", version.ref = "ibm-mq" }
