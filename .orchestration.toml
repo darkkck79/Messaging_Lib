@@ -1,0 +1,4 @@
+[gate]
+test_command = "gradlew.bat test"     # resolves inside the target dir
+test_paths   = ["**/src/test/**"]
+target_args  = ["--tests", "{target}"]
