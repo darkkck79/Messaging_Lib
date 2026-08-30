@@ -1,7 +1,3 @@
-plugins {
-    id 'java-library' apply false
-}
-
 subprojects {
     apply plugin: 'java-library'
 
@@ -23,6 +19,7 @@ subprojects {
         testImplementation libs.mockito.junit.jupiter
         testImplementation libs.awaitility
         testRuntimeOnly libs.logback.classic
+        testRuntimeOnly libs.junit.platform.launcher
     }
 
     tasks.withType(Test).configureEach {
