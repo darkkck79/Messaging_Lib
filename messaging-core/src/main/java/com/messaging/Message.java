@@ -15,8 +15,4 @@ public record Message(byte[] body, Map<String, String> headers) {
     public byte[] body() {
         return body.clone();
     }
-
-    public Map<String, String> headers() {
-        return Map.copyOf(this.headers());
-    }
 }

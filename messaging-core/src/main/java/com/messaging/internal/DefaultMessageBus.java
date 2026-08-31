@@ -7,16 +7,13 @@ import com.messaging.spi.TransportProvider;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentHashMap.KeySetView;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class DefaultMessageBus implements MessageBus, MessagingListener {
 
     private final MessagingConfig config;
     private final Map<String, Transport> transports = new ConcurrentHashMap<>();
-    private final KeySetView<String, Transport> destinations = transports.keySet();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicReference<ConnectionState> stateRef = new AtomicReference<>(ConnectionState.DISCONNECTED);
 
@@ -30,7 +27,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         Transport transport = getTransport(topic.name());
         Transport.SubscriptionImpl sub = transport.subscribe(topic.name(), handler, typedHandler);
         stateRef.set(ConnectionState.CONNECTED);
-        return sub;
+        return sub::close;
     }
 
     @Override
@@ -39,19 +36,19 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         Transport transport = getTransport(queue.name());
         Transport.SubscriptionImpl sub = transport.subscribe(queue.name(), handler, typedHandler);
         stateRef.set(ConnectionState.CONNECTED);
-        return sub;
+        return sub::close;
     }
 
     @Override
     public <T> TypedChannel<T> typed(Topic topic, Codec<T> codec) {
         checkConnected();
-        return new DefaultTypedChannel<>(topic, codec, getTransport(topic.name()));
+        return new DefaultTypedChannel<>(topic.name(), codec, getTransport(topic.name()));
     }
 
     @Override
     public <T> TypedChannel<T> typed(Queue queue, Codec<T> codec) {
         checkConnected();
-        return new DefaultTypedChannel<>(queue, codec, getTransport(queue.name()));
+        return new DefaultTypedChannel<>(queue.name(), codec, getTransport(queue.name()));
     }
 
     @Override
@@ -119,19 +116,19 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     }
 
     private static class DefaultTypedChannel<T> implements TypedChannel<T> {
-        private final Topic topic;
+        private final String destinationName;
         private final Codec<T> codec;
         private final Transport transport;
 
-        DefaultTypedChannel(Topic topic, Codec<T> codec, Transport transport) {
-            this.topic = topic;
+        DefaultTypedChannel(String destinationName, Codec<T> codec, Transport transport) {
+            this.destinationName = destinationName;
             this.codec = codec;
             this.transport = transport;
         }
 
         @Override
         public void publish(T message, Map<String, String> headers) {
-            transport.publish(topic.name(), codec.encode(message), headers);
+            transport.publish(destinationName, codec.encode(message), headers);
         }
 
         @Override
@@ -140,7 +137,8 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
                 T decoded = codec.decode(msg.body());
                 return handler.handle(decoded, msg.headers());
             };
-            return transport.subscribe(topic.name(), proxy, null);
+            Transport.SubscriptionImpl sub = transport.subscribe(destinationName, proxy, null);
+            return sub::close;
         }
     }
 }

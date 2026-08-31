@@ -1,6 +1,5 @@
 package com.messaging;
 
-@FunctionalInterface
 public interface Codec<T> {
     byte[] encode(T message);
 
