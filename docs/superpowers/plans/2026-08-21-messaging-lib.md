@@ -527,7 +527,7 @@ class DestinationTest {
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.DestinationTest" -i`
 Expected: FAIL — classes do not exist yet
 
-- [ ] **Step 3: Implement Destination, Topic, Queue**
+- [x] **Step 3: Implement Destination, Topic, Queue**
 
 `Destination.java`:
 ```java
