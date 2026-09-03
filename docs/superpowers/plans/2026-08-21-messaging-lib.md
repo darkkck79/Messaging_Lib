@@ -467,7 +467,7 @@ git commit -m "build: gradle multi-module skeleton with version catalog and wrap
 
 #### 2.1 Destination types
 
-- [ ] **Step 1: Write Destination tests**
+- [x] **Step 1: Write Destination tests**
 
 ```java
 package com.messaging;
