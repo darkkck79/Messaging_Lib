@@ -522,7 +522,7 @@ class DestinationTest {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.DestinationTest" -i`
 Expected: FAIL — classes do not exist yet
