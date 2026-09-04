@@ -578,7 +578,7 @@ Expected: PASS — all 9 tests green
 
 #### 2.2 Message record
 
-- [ ] **Step 5: Write Message tests**
+- [x] **Step 5: Write Message tests**
 
 ```java
 package com.messaging;
