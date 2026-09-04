@@ -89,24 +89,6 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         }
     }
 
-    @Override
-    public void connected(ConnectionState state) {
-        connected.set(true);
-        stateRef.set(state);
-    }
-
-    @Override
-    public void disconnected(ConnectionState state) {
-        connected.set(false);
-        stateRef.set(state);
-    }
-
-    @Override
-    public void reconnected(ConnectionState state) {
-        connected.set(true);
-        stateRef.set(state);
-    }
-
     public boolean isConnected() {
         return connected.get();
     }

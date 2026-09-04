@@ -571,7 +571,7 @@ public record Queue(String name) implements Destination {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.DestinationTest" -i`
 Expected: PASS — all 9 tests green
