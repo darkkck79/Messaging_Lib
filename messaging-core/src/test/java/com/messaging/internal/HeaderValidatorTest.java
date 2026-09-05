@@ -47,4 +47,11 @@ class HeaderValidatorTest {
         assertThatThrownBy(() -> validator.validate(message, topic))
             .isInstanceOf(MessagingException.class);
     }
+
+    @Test void permitsHeaderValuesWithUtf8CharactersAndSpaces() {
+        Message message = new Message(new byte[0], Map.of("content-type", "application/json; charset=utf-8"));
+
+        assertThatCode(() -> validator.validate(message, topic))
+            .doesNotThrowAnyException();
+    }
 }

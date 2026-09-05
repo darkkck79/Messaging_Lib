@@ -667,7 +667,7 @@ class MessageTest {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it fails**
+- [x] **Step 6: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.MessageTest" -i`
 Expected: FAIL — `Message` does not exist yet

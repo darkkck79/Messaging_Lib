@@ -28,10 +28,6 @@ public class HeaderValidator {
                 throw new MessagingException("Header key outside allowed charset: " + key);
             }
 
-            if (!isValidCharset(value)) {
-                throw new MessagingException("Header value outside allowed charset: " + value);
-            }
-
             if (key.startsWith("messaging.")) {
                 throw new MessagingException("Reserved header not allowed: " + key);
             }
