@@ -12,7 +12,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Immutable transport configuration. Built via {@link #builder()} or seeded from
+ * Immutable transport configuration. Built via {@link #builder()}, parsed from
+ * a connection URI via {@link #parse(String)}, or seeded from
  * {@link Properties} via {@link #fromProperties(Properties)}.
  */
 public final class MessagingConfig {
@@ -44,6 +45,12 @@ public final class MessagingConfig {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /** Parses a connection URI into a {@link MessagingConfig}. */
+    public static MessagingConfig parse(String uri) {
+        Objects.requireNonNull(uri, "uri must not be null");
+        return builder().url(uri).build();
     }
 
     /** Seeds a builder from {@code messaging.*} properties; unknown core keys fail fast. */

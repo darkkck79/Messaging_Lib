@@ -721,7 +721,7 @@ public record Message(byte[] body, Map<String, String> headers) {
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.MessageTest" -i`
 Expected: PASS — all 12 tests green

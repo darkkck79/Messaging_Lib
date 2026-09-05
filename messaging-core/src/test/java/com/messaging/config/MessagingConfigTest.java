@@ -24,6 +24,13 @@ class MessagingConfigTest {
         assertThat(config.url()).isEqualTo(URI.create("kafka://localhost:9092"));
     }
 
+    @Test void parseUriStringConstructsConfig() {
+        MessagingConfig config = MessagingConfig.parse("kafka://localhost:9092");
+
+        assertThat(config.url()).isEqualTo(URI.create("kafka://localhost:9092"));
+        assertThat(config.concurrency()).isEqualTo(1);
+    }
+
     @Test void urlIsRequired() {
         assertThatThrownBy(() -> MessagingConfig.builder().build())
             .isInstanceOf(IllegalStateException.class)
