@@ -3,6 +3,12 @@ package com.messaging;
 /** Event callbacks for connection and message lifecycle. All four are default no-ops so
  * applications override only what they observe. */
 public interface MessagingListener {
+
+    /** Returns a listener that performs no actions. */
+    static MessagingListener noOp() {
+        return new MessagingListener() {};
+    }
+
     default void onPublished(Destination destination) {}
 
     default void onConsumed(Destination destination) {}

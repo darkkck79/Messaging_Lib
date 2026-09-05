@@ -1,5 +1,6 @@
 package com.messaging.config;
 
+import com.messaging.MessagingListener;
 import java.net.URI;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
@@ -9,7 +10,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Immutable transport configuration. Built via {@link #builder()}, parsed from
@@ -28,18 +28,22 @@ public final class MessagingConfig {
         Set.of(URL, CLIENT_ID, CONCURRENCY, CONNECT_TIMEOUT, CLOSE_TIMEOUT);
 
     private final URI url;
+    private final String scheme;
     private final String clientId;
     private final int concurrency;
     private final Duration connectTimeout;
     private final Duration closeTimeout;
+    private final MessagingListener listener;
     private final Map<String, String> transportProperties;
 
     private MessagingConfig(Builder builder) {
         this.url = builder.url;
+        this.scheme = builder.url.getScheme() != null ? builder.url.getScheme() : "";
         this.clientId = builder.clientId != null ? builder.clientId : "messaging-" + UUID.randomUUID();
         this.concurrency = builder.concurrency;
         this.connectTimeout = builder.connectTimeout;
         this.closeTimeout = builder.closeTimeout;
+        this.listener = builder.listener != null ? builder.listener : MessagingListener.noOp();
         this.transportProperties = Map.copyOf(builder.transportProperties);
     }
 
@@ -109,6 +113,10 @@ public final class MessagingConfig {
         return url;
     }
 
+    public String scheme() {
+        return scheme;
+    }
+
     public String clientId() {
         return clientId;
     }
@@ -123,6 +131,10 @@ public final class MessagingConfig {
 
     public Duration closeTimeout() {
         return closeTimeout;
+    }
+
+    public MessagingListener listener() {
+        return listener;
     }
 
     public Map<String, String> transportProperties() {
@@ -149,7 +161,7 @@ public final class MessagingConfig {
     private String redactedProperties() {
         return transportProperties.entrySet().stream()
             .map(e -> e.getKey() + "=" + (isSensitive(e.getKey()) ? "***" : e.getValue()))
-            .collect(Collectors.joining(", "));
+            .collect(java.util.stream.Collectors.joining(", "));
     }
 
     private static boolean isSensitive(String key) {
@@ -163,6 +175,7 @@ public final class MessagingConfig {
         private int concurrency = 1;
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration closeTimeout = Duration.ofSeconds(30);
+        private MessagingListener listener = MessagingListener.noOp();
         private final Map<String, String> transportProperties = new LinkedHashMap<>();
 
         private Builder() {
@@ -198,6 +211,11 @@ public final class MessagingConfig {
 
         public Builder closeTimeout(Duration closeTimeout) {
             this.closeTimeout = Objects.requireNonNull(closeTimeout, "closeTimeout must not be null");
+            return this;
+        }
+
+        public Builder listener(MessagingListener listener) {
+            this.listener = listener;
             return this;
         }
 
