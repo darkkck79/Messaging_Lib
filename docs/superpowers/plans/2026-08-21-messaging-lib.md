@@ -728,7 +728,7 @@ Expected: PASS — all 12 tests green
 
 #### 2.3 Remaining value types (interfaces, enums)
 
-- [ ] **Step 9: Create all remaining value types**
+- [x] **Step 9: Create all remaining value types**
 
 These are interfaces/enums — tested through their implementations in later tasks.
 
