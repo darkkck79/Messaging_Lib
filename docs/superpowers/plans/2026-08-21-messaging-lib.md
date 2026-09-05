@@ -929,7 +929,7 @@ class MessagingConfigTest {
 }
 ```
 
-- [ ] **Step 11: Run test to verify it fails**
+- [x] **Step 11: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.config.MessagingConfigTest" -i`
 Expected: FAIL — `MessagingConfig` does not exist yet

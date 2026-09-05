@@ -19,6 +19,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
 
     public DefaultMessageBus(MessagingConfig config) {
         this.config = config;
+        connected.set(true);
     }
 
     @Override
