@@ -38,6 +38,6 @@ public record Message(byte[] body, Map<String, String> headers) {
 
     @Override
     public String toString() {
-        return "Message[body=" + Arrays.toString(body) + ", headers=" + headers + "]";
+        return "Message[body=" + body.length + " bytes, headers=" + headers + "]";
     }
 }
