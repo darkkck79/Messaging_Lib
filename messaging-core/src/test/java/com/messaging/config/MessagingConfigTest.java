@@ -45,6 +45,8 @@ class MessagingConfigTest {
     @Test void defaultsMatchSpec() {
         MessagingConfig config = MessagingConfig.builder().url("kafka://localhost:9092").build();
 
+        assertThat(config.scheme()).isEqualTo("kafka");
+        assertThat(config.listener()).isNotNull();
         assertThat(config.concurrency()).isEqualTo(1);
         assertThat(config.connectTimeout()).isEqualTo(Duration.parse("PT10S"));
         assertThat(config.closeTimeout()).isEqualTo(Duration.parse("PT30S"));
