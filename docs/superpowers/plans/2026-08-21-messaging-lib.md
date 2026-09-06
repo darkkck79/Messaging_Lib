@@ -1058,7 +1058,7 @@ public final class MessagingConfig {
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all Destination, Message, and MessagingConfig tests green
 
-- [ ] **Step 14: Run `/simplify` and commit**
+- [x] **Step 14: Run `/simplify` and commit**
 
 ```powershell
 git add -A
