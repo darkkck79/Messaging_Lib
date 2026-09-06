@@ -934,7 +934,7 @@ class MessagingConfigTest {
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.config.MessagingConfigTest" -i`
 Expected: FAIL — `MessagingConfig` does not exist yet
 
-- [ ] **Step 12: Implement MessagingConfig**
+- [x] **Step 12: Implement MessagingConfig**
 
 ```java
 package com.messaging.config;
