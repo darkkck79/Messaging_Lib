@@ -1053,7 +1053,7 @@ public final class MessagingConfig {
 }
 ```
 
-- [ ] **Step 13: Run all core tests**
+- [x] **Step 13: Run all core tests**
 
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all Destination, Message, and MessagingConfig tests green
