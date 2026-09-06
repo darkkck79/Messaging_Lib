@@ -809,7 +809,7 @@ public class MessagingException extends RuntimeException {
 
 #### 2.4 MessagingConfig
 
-- [ ] **Step 10: Write MessagingConfig tests**
+- [x] **Step 10: Write MessagingConfig tests**
 
 ```java
 package com.messaging.config;

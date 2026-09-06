@@ -1,6 +1,8 @@
 package com.messaging.config;
 
+import com.messaging.MessagingException;
 import com.messaging.MessagingListener;
+import com.messaging.spi.TransportProvider;
 import java.net.URI;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
@@ -34,17 +36,17 @@ public final class MessagingConfig {
     private final Duration connectTimeout;
     private final Duration closeTimeout;
     private final MessagingListener listener;
-    private final Map<String, String> transportProperties;
+    private final Map<String, String> passthroughProperties;
 
     private MessagingConfig(Builder builder) {
         this.url = builder.url;
-        this.scheme = builder.url.getScheme() != null ? builder.url.getScheme() : "";
+        this.scheme = builder.url != null ? builder.url.getScheme() : "";
         this.clientId = builder.clientId != null ? builder.clientId : "messaging-" + UUID.randomUUID();
         this.concurrency = builder.concurrency;
         this.connectTimeout = builder.connectTimeout;
         this.closeTimeout = builder.closeTimeout;
         this.listener = builder.listener != null ? builder.listener : MessagingListener.noOp();
-        this.transportProperties = Map.copyOf(builder.transportProperties);
+        this.passthroughProperties = Map.copyOf(builder.passthroughProperties);
     }
 
     public static Builder builder() {
@@ -58,7 +60,7 @@ public final class MessagingConfig {
     }
 
     /** Seeds a builder from {@code messaging.*} properties; unknown core keys fail fast. */
-    public static Builder fromProperties(Properties properties) {
+    public static MessagingConfig fromProperties(Properties properties) {
         Objects.requireNonNull(properties, "properties must not be null");
         Builder builder = new Builder();
         String url = properties.getProperty(URL);
@@ -82,7 +84,7 @@ public final class MessagingConfig {
                 default -> {
                     int dot = remainder.indexOf('.');
                     if (dot < 0) {
-                        throw new IllegalArgumentException("Unknown configuration key: " + key);
+                        throw new MessagingException("Unknown configuration key: " + key);
                     }
                     if (remainder.substring(0, dot).equals(scheme)) {
                         builder.property(remainder.substring(dot + 1), value);
@@ -90,14 +92,14 @@ public final class MessagingConfig {
                 }
             }
         }
-        return builder;
+        return builder.build();
     }
 
     private static int parseInt(String key, String value) {
         try {
             return Integer.parseInt(value.trim());
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid integer for " + key + ": " + value, e);
+            throw new MessagingException("Invalid integer for " + key + ": " + value, e);
         }
     }
 
@@ -105,7 +107,7 @@ public final class MessagingConfig {
         try {
             return Duration.parse(value.trim());
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Invalid ISO-8601 duration for " + key + ": " + value, e);
+            throw new MessagingException("Invalid ISO-8601 duration for " + key + ": " + value, e);
         }
     }
 
@@ -137,8 +139,13 @@ public final class MessagingConfig {
         return listener;
     }
 
+    /** Returns transport-specific properties passed through to the transport implementation. */
     public Map<String, String> transportProperties() {
-        return transportProperties;
+        return passthroughProperties;
+    }
+
+    public Map<String, String> passthroughProperties() {
+        return passthroughProperties;
     }
 
     @Override
@@ -148,7 +155,7 @@ public final class MessagingConfig {
             + ", concurrency=" + concurrency
             + ", connectTimeout=" + connectTimeout
             + ", closeTimeout=" + closeTimeout
-            + ", transportProperties={" + redactedProperties() + "}]";
+            + ", passthroughProperties={" + redactedProperties() + "}]";
     }
 
     private static String redactUserInfo(URI uri) {
@@ -159,7 +166,7 @@ public final class MessagingConfig {
     }
 
     private String redactedProperties() {
-        return transportProperties.entrySet().stream()
+        return passthroughProperties.entrySet().stream()
             .map(e -> e.getKey() + "=" + (isSensitive(e.getKey()) ? "***" : e.getValue()))
             .collect(java.util.stream.Collectors.joining(", "));
     }
@@ -176,7 +183,7 @@ public final class MessagingConfig {
         private Duration connectTimeout = Duration.ofSeconds(10);
         private Duration closeTimeout = Duration.ofSeconds(30);
         private MessagingListener listener = MessagingListener.noOp();
-        private final Map<String, String> transportProperties = new LinkedHashMap<>();
+        private final Map<String, String> passthroughProperties = new LinkedHashMap<>();
 
         private Builder() {
         }
@@ -220,7 +227,7 @@ public final class MessagingConfig {
         }
 
         public Builder property(String key, String value) {
-            transportProperties.put(
+            passthroughProperties.put(
                 Objects.requireNonNull(key, "property key must not be null"),
                 Objects.requireNonNull(value, "property value must not be null"));
             return this;
@@ -228,7 +235,7 @@ public final class MessagingConfig {
 
         public MessagingConfig build() {
             if (url == null) {
-                throw new IllegalStateException("messaging.url is required");
+                throw new MessagingException("messaging.url is required");
             }
             return new MessagingConfig(this);
         }
