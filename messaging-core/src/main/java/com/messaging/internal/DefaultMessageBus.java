@@ -34,7 +34,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     public Subscription subscribe(Topic topic, MessageHandler handler, TypedHandler<?> typedHandler) {
         checkConnected();
         Transport transport = getTransport(topic.name());
-        Transport.SubscriptionImpl sub = transport.subscribe(topic.name(), handler, typedHandler);
+        Transport.SubscriptionImpl sub = transport.subscribe(topic.name(), isolate(topic, handler), typedHandler);
         stateRef.set(ConnectionState.CONNECTED);
         return sub::close;
     }
@@ -43,9 +43,29 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     public Subscription subscribe(Queue queue, MessageHandler handler, TypedHandler<?> typedHandler) {
         checkConnected();
         Transport transport = getTransport(queue.name());
-        Transport.SubscriptionImpl sub = transport.subscribe(queue.name(), handler, typedHandler);
+        Transport.SubscriptionImpl sub = transport.subscribe(queue.name(), isolate(queue, handler), typedHandler);
         stateRef.set(ConnectionState.CONNECTED);
         return sub::close;
+    }
+
+    /**
+     * Wraps a handler so a thrown exception (or a future that completes exceptionally)
+     * is reported to the listener instead of propagating into the transport's delivery loop,
+     * which would otherwise abort delivery to any remaining subscribers.
+     */
+    private MessageHandler isolate(Destination destination, MessageHandler handler) {
+        return message -> {
+            try {
+                java.util.concurrent.CompletableFuture<Void> result = handler.handle(message);
+                return result.exceptionally(error -> {
+                    listener.onError(destination, error);
+                    return null;
+                });
+            } catch (Throwable error) {
+                listener.onError(destination, error);
+                return java.util.concurrent.CompletableFuture.completedFuture(null);
+            }
+        };
     }
 
     @Override

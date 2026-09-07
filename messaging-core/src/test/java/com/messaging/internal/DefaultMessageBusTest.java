@@ -9,10 +9,14 @@ import com.messaging.config.MessagingConfig;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -50,5 +54,38 @@ class DefaultMessageBusTest {
         }
 
         assertThat(notified.get()).isEqualTo(Topic.of("orders"));
+    }
+
+    @Test void handlerFailureIsIsolatedAndReportedToListenerWithoutBlockingOtherSubscribers() {
+        AtomicReference<Throwable> reportedError = new AtomicReference<>();
+        AtomicReference<Destination> reportedDestination = new AtomicReference<>();
+        MessagingListener listener = new MessagingListener() {
+            @Override public void onError(Destination destination, Throwable error) {
+                reportedDestination.set(destination);
+                reportedError.set(error);
+            }
+        };
+        MessagingConfig config = MessagingConfig.builder()
+            .url("fake://localhost")
+            .listener(listener)
+            .build();
+        List<String> receivedBySecondHandler = new CopyOnWriteArrayList<>();
+        RuntimeException boom = new RuntimeException("boom");
+
+        try (MessageBus bus = new DefaultMessageBus(config)) {
+            try (var first = bus.subscribe(Topic.of("orders"), message -> { throw boom; }, null);
+                 var second = bus.subscribe(Topic.of("orders"), message -> {
+                     receivedBySecondHandler.add(new String(message.body()));
+                     return CompletableFuture.completedFuture(null);
+                 }, null)) {
+
+                assertThatCode(() -> bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of()))
+                    .doesNotThrowAnyException();
+            }
+        }
+
+        assertThat(reportedDestination.get()).isEqualTo(Topic.of("orders"));
+        assertThat(reportedError.get()).isEqualTo(boom);
+        assertThat(receivedBySecondHandler).containsExactly("hello");
     }
 }
