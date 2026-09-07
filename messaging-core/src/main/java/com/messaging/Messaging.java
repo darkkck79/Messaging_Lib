@@ -2,12 +2,11 @@ package com.messaging;
 
 import com.messaging.config.MessagingConfig;
 import com.messaging.internal.DefaultMessageBus;
-import com.messaging.spi.Transport;
 import com.messaging.spi.TransportProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Map;
 
 /**
  * Static factory for connecting to a messaging transport.
@@ -25,6 +24,8 @@ public final class Messaging {
     public static MessageBus connect(MessagingConfig config) {
         MessagingListener rawListener = config.listener();
         MessagingListener safeListener = wrapSafe(rawListener);
+        // Resolve transport eagerly so that a missing provider fails fast
+        TransportProvider.lookup(config);
         return new DefaultMessageBus(config, safeListener);
     }
 

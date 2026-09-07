@@ -12,6 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -63,6 +64,15 @@ class MessagingFactoryTest {
                 await().untilAsserted(() -> assertThat(received).containsExactly("hello"));
             }
         }
+    }
+
+    @Test void noProviderForSchemeThrows() {
+        MessagingConfig config = MessagingConfig.builder().url("nonexistent://localhost:1234").build();
+
+        assertThatThrownBy(() -> Messaging.connect(config))
+            .isInstanceOf(MessagingException.class)
+            .hasMessageContaining("nonexistent")
+            .hasMessageContaining("No TransportProvider");
     }
 
     public static final class FakeTransportProvider implements TransportProvider {

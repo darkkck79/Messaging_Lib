@@ -1506,7 +1506,7 @@ public final class Messaging {
 }
 ```
 
-- [ ] **Step 10: Write and run MessagingFactoryTest**
+- [x] **Step 10: Write and run MessagingFactoryTest**
 
 ```java
 package com.messaging;

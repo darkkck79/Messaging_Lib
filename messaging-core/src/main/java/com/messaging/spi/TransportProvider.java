@@ -1,5 +1,6 @@
 package com.messaging.spi;
 
+import com.messaging.MessagingException;
 import com.messaging.config.MessagingConfig;
 
 import java.net.URI;
@@ -17,6 +18,7 @@ public interface TransportProvider {
             .map(ServiceLoader.Provider::get)
             .filter(p -> p.supports(providerName))
             .findFirst()
-            .orElseThrow(() -> new IllegalStateException("No TransportProvider found for: " + providerName));
+            .orElseThrow(() -> new MessagingException(
+                "No TransportProvider found for scheme '" + providerName + "': " + config.url()));
     }
 }

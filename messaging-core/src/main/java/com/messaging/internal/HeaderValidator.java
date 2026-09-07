@@ -39,15 +39,15 @@ public class HeaderValidator {
             }
 
             if (key.startsWith("messaging.")) {
-                throw new MessagingException("Reserved header not allowed: " + key);
+                throw new MessagingException("Reserved header prefix 'messaging.' on key: " + key);
             }
 
             if (key.startsWith("JMSX")) {
-                throw new MessagingException("Reserved header not allowed: " + key);
+                throw new MessagingException("Reserved header prefix 'JMSX' on key: " + key);
             }
 
             if (key.startsWith("JMS")) {
-                throw new MessagingException("Reserved header not allowed: " + key);
+                throw new MessagingException("Reserved header prefix 'JMS' on key: " + key);
             }
         }
 
