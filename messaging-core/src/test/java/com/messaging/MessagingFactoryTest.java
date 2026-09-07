@@ -32,6 +32,23 @@ class MessagingFactoryTest {
         }
     }
 
+    @Test void connectIsolatesExceptionsThrownByTheConfiguredListener() {
+        MessagingConfig config = MessagingConfig.builder()
+            .url("fake://localhost")
+            .listener(new MessagingListener() {
+                @Override
+                public void onPublished(Destination destination) {
+                    throw new RuntimeException("boom");
+                }
+            })
+            .build();
+
+        try (MessageBus bus = Messaging.connect(config)) {
+            assertThatCode(() -> bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of()))
+                .doesNotThrowAnyException();
+        }
+    }
+
     @Test void connectedBusDeliversPublishedMessagesToSubscribers() {
         MessagingConfig config = MessagingConfig.builder().url("fake://localhost").build();
         var received = new CopyOnWriteArrayList<String>();

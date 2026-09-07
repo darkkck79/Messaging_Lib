@@ -24,7 +24,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         connected.set(true);
     }
 
-    DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
+    public DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
         this.config = config;
         this.listener = listener;
         connected.set(true);

@@ -1438,7 +1438,7 @@ class TypedChannelTest {
 }
 ```
 
-- [ ] **Step 9: Implement Messaging factory**
+- [x] **Step 9: Implement Messaging factory**
 
 ```java
 package com.messaging;
