@@ -1183,7 +1183,7 @@ Expected: PASS
 
 #### 3.2 SPI, MessageBus, DefaultMessageBus, TypedChannel, Messaging factory
 
-- [ ] **Step 4: Create SPI interfaces**
+- [ ] **Step 4: Create SPI interfaces** <!-- orch: running -->
 
 `spi/TransportProvider.java`:
 ```java
