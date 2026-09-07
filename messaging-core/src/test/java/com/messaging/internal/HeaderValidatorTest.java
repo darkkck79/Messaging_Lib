@@ -48,17 +48,22 @@ class HeaderValidatorTest {
     }
 
     @Test void headerBlockSizeMeasuredInUtf8Bytes() {
-        // 30_000 '€' chars = 90_000 UTF-8 bytes, but only 30_000 chars.
-        // The spec caps the block at 64 KiB *on the wire*, so this must be rejected.
-        var headers = Map.of("big", "€".repeat(30_000));
+        // Spec section G: values are UTF-8 on the wire and the block is rejected above 64 KiB.
+        // 30_000 EURO SIGN (U+20AC) = 30_000 chars but 90_000 UTF-8 bytes, so the
+        // block is over the cap on the wire even though the char count is under it.
+        // The char is built numerically so the source file's encoding cannot affect it.
+        String euro = String.valueOf((char) 0x20AC);
+        var headers = Map.of("big", euro.repeat(30_000));
         assertThatThrownBy(() -> HeaderValidator.validateForPublish(headers))
             .isInstanceOf(MessagingException.class).hasMessageContaining("64 KiB");
     }
 
     @Test void nonAsciiKeyRejected() {
-        // Spec charset is [A-Za-z0-9_.-]+ — Unicode letters are outside it.
-        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("kéy", "v")))
-            .isInstanceOf(MessagingException.class).hasMessageContaining("kéy");
+        // Spec section G key charset is [A-Za-z0-9_.-]+ - U+00E9 (e-acute) is outside it,
+        // even though Character.isLetterOrDigit accepts it.
+        String key = "k" + (char) 0x00E9 + "y";
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of(key, "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("charset");
     }
 
     @Test void headerBlockAtLimitPasses() {

@@ -1176,7 +1176,7 @@ public final class HeaderValidator {
 }
 ```
 
-- [ ] **Step 3: Run HeaderValidator tests**
+- [x] **Step 3: Run HeaderValidator tests**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.internal.HeaderValidatorTest" -i`
 Expected: PASS
