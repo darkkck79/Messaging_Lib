@@ -26,7 +26,7 @@ class MessagingConfigTest {
     }
 
     @Test void builderCustomValues() {
-        var listener = MessagingListener.noOp();
+        var listener = new MessagingListener() {};
         var config = MessagingConfig.builder()
             .url("jms://broker:61616").clientId("my-app").concurrency(4)
             .connectTimeout(Duration.ofSeconds(5)).closeTimeout(Duration.ofSeconds(60))

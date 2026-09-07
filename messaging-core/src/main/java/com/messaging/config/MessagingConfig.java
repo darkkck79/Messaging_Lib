@@ -35,7 +35,7 @@ public final class MessagingConfig {
         this.concurrency = b.concurrency;
         this.connectTimeout = b.connectTimeout;
         this.closeTimeout = b.closeTimeout;
-        this.listener = b.listener != null ? b.listener : MessagingListener.noOp();
+        this.listener = b.listener != null ? b.listener : new MessagingListener() {};
         this.passthroughProperties = Collections.unmodifiableMap(new LinkedHashMap<>(b.passthrough));
         this.transportProperties = Collections.unmodifiableMap(new LinkedHashMap<>(b.transport));
     }

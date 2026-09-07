@@ -1525,7 +1525,7 @@ class MessagingFactoryTest {
 }
 ```
 
-- [ ] **Step 11: Run all core tests**
+- [x] **Step 11: Run all core tests**
 
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all tests green
