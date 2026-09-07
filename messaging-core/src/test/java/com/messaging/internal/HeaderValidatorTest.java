@@ -47,6 +47,20 @@ class HeaderValidatorTest {
             .isInstanceOf(MessagingException.class).hasMessageContaining("64 KiB");
     }
 
+    @Test void headerBlockSizeMeasuredInUtf8Bytes() {
+        // 30_000 '€' chars = 90_000 UTF-8 bytes, but only 30_000 chars.
+        // The spec caps the block at 64 KiB *on the wire*, so this must be rejected.
+        var headers = Map.of("big", "€".repeat(30_000));
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(headers))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("64 KiB");
+    }
+
+    @Test void nonAsciiKeyRejected() {
+        // Spec charset is [A-Za-z0-9_.-]+ — Unicode letters are outside it.
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("kéy", "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("kéy");
+    }
+
     @Test void headerBlockAtLimitPasses() {
         var headers = new HashMap<String, String>();
         String value = "x".repeat(8192);

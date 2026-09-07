@@ -1139,7 +1139,7 @@ class HeaderValidatorTest {
 }
 ```
 
-- [ ] **Step 2: Implement HeaderValidator** <!-- orch: running -->
+- [x] **Step 2: Implement HeaderValidator**
 
 ```java
 package com.messaging.internal;
