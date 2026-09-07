@@ -1296,7 +1296,7 @@ class DefaultMessageBusTest {
 }
 ```
 
-- [ ] **Step 7: Implement DefaultMessageBus** <!-- orch: running -->
+- [x] **Step 7: Implement DefaultMessageBus**
 
 ```java
 package com.messaging.internal;

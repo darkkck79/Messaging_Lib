@@ -2,6 +2,7 @@ package com.messaging.spi;
 
 import com.messaging.config.MessagingConfig;
 
+import java.net.URI;
 import java.util.ServiceLoader;
 
 public interface TransportProvider {
@@ -10,11 +11,11 @@ public interface TransportProvider {
     boolean supports(String providerName);
 
     static TransportProvider lookup(MessagingConfig config) {
-        String providerName = config.transportProperties().getOrDefault("provider", "default");
+        String providerName = config.transportProperties().getOrDefault("provider", config.url().getScheme());
         return ServiceLoader.load(TransportProvider.class, TransportProvider.class.getClassLoader())
             .stream()
             .map(ServiceLoader.Provider::get)
-            .filter(p -> providerName.equals("default") || p.supports(providerName))
+            .filter(p -> p.supports(providerName))
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("No TransportProvider found for: " + providerName));
     }

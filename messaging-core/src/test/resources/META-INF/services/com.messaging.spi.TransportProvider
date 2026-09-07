@@ -1,1 +1,3 @@
 com.messaging.MessagingFactoryTest$FakeTransportProvider
+com.messaging.spi.TransportProviderTest$SchemeAProvider
+com.messaging.spi.TransportProviderTest$SchemeBProvider
