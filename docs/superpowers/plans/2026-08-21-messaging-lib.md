@@ -1233,7 +1233,7 @@ public interface MessageBus extends AutoCloseable {
 }
 ```
 
-- [ ] **Step 6: Write DefaultMessageBus tests**
+- [x] **Step 6: Write DefaultMessageBus tests**
 
 ```java
 package com.messaging.internal;

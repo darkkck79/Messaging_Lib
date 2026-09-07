@@ -1,14 +1,18 @@
 package com.messaging.internal;
 
+import com.messaging.Destination;
 import com.messaging.MessageBus;
 import com.messaging.MessagingException;
+import com.messaging.MessagingListener;
 import com.messaging.Topic;
 import com.messaging.config.MessagingConfig;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -27,5 +31,24 @@ class DefaultMessageBusTest {
                 .isInstanceOf(MessagingException.class)
                 .hasMessageContaining("bad key!");
         }
+    }
+
+    @Test void publishNotifiesConfiguredListenerOnPublished() {
+        AtomicReference<Destination> notified = new AtomicReference<>();
+        MessagingListener listener = new MessagingListener() {
+            @Override public void onPublished(Destination destination) {
+                notified.set(destination);
+            }
+        };
+        MessagingConfig config = MessagingConfig.builder()
+            .url("fake://localhost")
+            .listener(listener)
+            .build();
+
+        try (MessageBus bus = new DefaultMessageBus(config)) {
+            bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of());
+        }
+
+        assertThat(notified.get()).isEqualTo(Topic.of("orders"));
     }
 }

@@ -16,9 +16,17 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     private final Map<String, Transport> transports = new ConcurrentHashMap<>();
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicReference<ConnectionState> stateRef = new AtomicReference<>(ConnectionState.DISCONNECTED);
+    private final MessagingListener listener;
 
     public DefaultMessageBus(MessagingConfig config) {
         this.config = config;
+        this.listener = config.listener();
+        connected.set(true);
+    }
+
+    DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
+        this.config = config;
+        this.listener = listener;
         connected.set(true);
     }
 
@@ -58,6 +66,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         HeaderValidator.validateForPublish(headers);
         Transport transport = getTransport(topic.name());
         transport.publish(topic.name(), body, headers);
+        listener.onPublished(topic);
     }
 
     @Override
@@ -66,6 +75,27 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         HeaderValidator.validateForPublish(headers);
         Transport transport = getTransport(queue.name());
         transport.publish(queue.name(), body, headers);
+        listener.onPublished(queue);
+    }
+
+    @Override
+    public void onPublished(Destination destination) {
+        listener.onPublished(destination);
+    }
+
+    @Override
+    public void onConsumed(Destination destination) {
+        listener.onConsumed(destination);
+    }
+
+    @Override
+    public void onError(Destination destination, Throwable error) {
+        listener.onError(destination, error);
+    }
+
+    @Override
+    public void onConnectionStateChanged(ConnectionState state) {
+        listener.onConnectionStateChanged(state);
     }
 
     @Override
