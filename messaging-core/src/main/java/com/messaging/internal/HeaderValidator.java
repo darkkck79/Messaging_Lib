@@ -1,22 +1,27 @@
 package com.messaging.internal;
 
-import com.messaging.Message;
 import com.messaging.MessagingException;
-import com.messaging.Topic;
 
 import java.util.Map;
 
+/**
+ * Validates headers for publish-time constraints.
+ * Checks charset, reserved prefixes (JMS, JMSX, messaging.), and total header block size (64 KiB).
+ */
 public class HeaderValidator {
 
-    public void validate(Message message, Topic topic) {
-        if (message == null) {
-            throw new MessagingException("Message must not be null");
-        }
-        if (topic == null) {
-            throw new MessagingException("Topic must not be null");
+    /**
+     * Validates headers for publish-time constraints.
+     *
+     * @param headers the headers to validate (unmodifiable map)
+     * @throws MessagingException if any header violates constraints
+     */
+    public static void validateForPublish(Map<String, String> headers) {
+        if (headers == null) {
+            throw new MessagingException("Headers must not be null");
         }
 
-        for (Map.Entry<String, String> entry : message.headers().entrySet()) {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
 
@@ -39,7 +44,7 @@ public class HeaderValidator {
 
         // Check total header block size (64 KiB cap)
         int totalSize = 0;
-        for (Map.Entry<String, String> entry : message.headers().entrySet()) {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
             totalSize += entry.getKey().length() + entry.getValue().length();
         }
 

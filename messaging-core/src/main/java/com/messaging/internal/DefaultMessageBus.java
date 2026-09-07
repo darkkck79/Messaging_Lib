@@ -55,6 +55,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     @Override
     public void publish(Topic topic, byte[] body, Map<String, String> headers) {
         checkConnected();
+        HeaderValidator.validateForPublish(headers);
         Transport transport = getTransport(topic.name());
         transport.publish(topic.name(), body, headers);
     }
@@ -62,6 +63,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     @Override
     public void publish(Queue queue, byte[] body, Map<String, String> headers) {
         checkConnected();
+        HeaderValidator.validateForPublish(headers);
         Transport transport = getTransport(queue.name());
         transport.publish(queue.name(), body, headers);
     }

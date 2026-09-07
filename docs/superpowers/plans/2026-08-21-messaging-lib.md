@@ -1088,7 +1088,7 @@ git commit -m "feat(core): public API value types and MessagingConfig with TDD"
 
 #### 3.1 HeaderValidator
 
-- [ ] **Step 1: Write HeaderValidator tests**
+- [x] **Step 1: Write HeaderValidator tests**
 
 ```java
 package com.messaging.internal;

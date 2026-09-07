@@ -1,8 +1,6 @@
 package com.messaging.internal;
 
-import com.messaging.Message;
 import com.messaging.MessagingException;
-import com.messaging.Topic;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -12,46 +10,47 @@ import static org.assertj.core.api.Assertions.*;
 
 class HeaderValidatorTest {
 
-    private final HeaderValidator validator = new HeaderValidator();
-    private final Topic topic = Topic.of("orders");
-
-    @Test void rejectsHeaderKeyOutsideAllowedCharset() {
-        Message message = new Message(new byte[0], Map.of("bad key!", "v"));
-
-        assertThatThrownBy(() -> validator.validate(message, topic))
-            .isInstanceOf(MessagingException.class)
-            .hasMessageContaining("bad key!");
+    @Test void validHeadersPass() {
+        assertThatCode(() -> HeaderValidator.validateForPublish(
+            Map.of("my-key", "value", "X.Custom.1", "data"))).doesNotThrowAnyException();
     }
 
-    @Test void rejectsMessagingReservedPrefix() {
-        Message message = new Message(new byte[0], Map.of("messaging.custom", "v"));
-
-        assertThatThrownBy(() -> validator.validate(message, topic))
-            .isInstanceOf(MessagingException.class)
-            .hasMessageContaining("messaging.custom");
+    @Test void emptyHeadersPass() {
+        assertThatCode(() -> HeaderValidator.validateForPublish(Map.of())).doesNotThrowAnyException();
     }
 
-    @Test void rejectsJmsReservedPrefix() {
-        Message message = new Message(new byte[0], Map.of("JMSXGroupID", "v"));
-
-        assertThatThrownBy(() -> validator.validate(message, topic))
-            .isInstanceOf(MessagingException.class)
-            .hasMessageContaining("JMSXGroupID");
+    @Test void invalidKeyCharsetRejected() {
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("bad key!", "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("bad key!");
     }
 
-    @Test void rejectsHeaderBlockOver64KiB() {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("k", "v".repeat(70 * 1024));
-        Message message = new Message(new byte[0], headers);
-
-        assertThatThrownBy(() -> validator.validate(message, topic))
-            .isInstanceOf(MessagingException.class);
+    @Test void reservedPrefixJmsRejected() {
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("JMSCorrelationID", "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("JMS");
     }
 
-    @Test void permitsHeaderValuesWithUtf8CharactersAndSpaces() {
-        Message message = new Message(new byte[0], Map.of("content-type", "application/json; charset=utf-8"));
+    @Test void reservedPrefixJmsxRejected() {
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("JMSXGroupID", "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("JMSX");
+    }
 
-        assertThatCode(() -> validator.validate(message, topic))
-            .doesNotThrowAnyException();
+    @Test void reservedPrefixMessagingRejected() {
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(Map.of("messaging.internal", "v")))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("messaging.");
+    }
+
+    @Test void headerBlockSizeExceeded() {
+        var headers = new HashMap<String, String>();
+        String bigValue = "x".repeat(8192);
+        for (int i = 0; i < 9; i++) headers.put("key" + i, bigValue);
+        assertThatThrownBy(() -> HeaderValidator.validateForPublish(headers))
+            .isInstanceOf(MessagingException.class).hasMessageContaining("64 KiB");
+    }
+
+    @Test void headerBlockAtLimitPasses() {
+        var headers = new HashMap<String, String>();
+        String value = "x".repeat(8192);
+        for (int i = 0; i < 7; i++) headers.put("key" + i, value);
+        assertThatCode(() -> HeaderValidator.validateForPublish(headers)).doesNotThrowAnyException();
     }
 }
