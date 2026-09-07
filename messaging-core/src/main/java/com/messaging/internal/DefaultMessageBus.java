@@ -57,8 +57,12 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
         return message -> {
             try {
                 java.util.concurrent.CompletableFuture<Void> result = handler.handle(message);
-                return result.exceptionally(error -> {
-                    listener.onError(destination, error);
+                return result.handle((value, error) -> {
+                    if (error != null) {
+                        listener.onError(destination, error);
+                    } else {
+                        listener.onConsumed(destination);
+                    }
                     return null;
                 });
             } catch (Throwable error) {

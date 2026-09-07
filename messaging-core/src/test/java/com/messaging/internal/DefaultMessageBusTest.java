@@ -88,4 +88,31 @@ class DefaultMessageBusTest {
         assertThat(reportedError.get()).isEqualTo(boom);
         assertThat(receivedBySecondHandler).containsExactly("hello");
     }
+
+    /**
+     * Per design spec §H: "onConsumed fires after settlement, so it means
+     * 'processed and settled', not 'received'." DefaultMessageBus must notify the
+     * configured listener once a subscriber's handler successfully completes.
+     */
+    @Test void successfulHandlerSettlementNotifiesListenerOnConsumed() {
+        AtomicReference<Destination> notified = new AtomicReference<>();
+        MessagingListener listener = new MessagingListener() {
+            @Override public void onConsumed(Destination destination) {
+                notified.set(destination);
+            }
+        };
+        MessagingConfig config = MessagingConfig.builder()
+            .url("fake://localhost")
+            .listener(listener)
+            .build();
+
+        try (MessageBus bus = new DefaultMessageBus(config)) {
+            try (var subscription = bus.subscribe(Topic.of("orders"), message ->
+                    CompletableFuture.completedFuture(null), null)) {
+                bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of());
+            }
+        }
+
+        assertThat(notified.get()).isEqualTo(Topic.of("orders"));
+    }
 }

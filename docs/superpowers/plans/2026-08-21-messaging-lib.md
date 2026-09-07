@@ -1345,7 +1345,7 @@ public final class DefaultMessageBus implements MessageBus {
 }
 ```
 
-- [ ] **Step 8: Write TypedChannel tests and implement**
+- [x] **Step 8: Write TypedChannel tests and implement**
 
 ```java
 // TypedChannel.java
