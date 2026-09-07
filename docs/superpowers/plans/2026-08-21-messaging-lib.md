@@ -1214,7 +1214,7 @@ public interface Transport extends AutoCloseable {
 }
 ```
 
-- [ ] **Step 5: Create MessageBus interface**
+- [x] **Step 5: Create MessageBus interface**
 
 ```java
 package com.messaging;

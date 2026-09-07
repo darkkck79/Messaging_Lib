@@ -113,6 +113,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
 
         @Override
         public void publish(T message, Map<String, String> headers) {
+            HeaderValidator.validateForPublish(headers);
             transport.publish(destinationName, codec.encode(message), headers);
         }
 
