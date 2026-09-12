@@ -17,17 +17,19 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicReference<ConnectionState> stateRef = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final MessagingListener listener;
-    private volatile TransportProvider provider;
+    private final TransportProvider provider;
 
     public DefaultMessageBus(MessagingConfig config) {
         this.config = config;
         this.listener = config.listener();
+        this.provider = TransportProvider.lookup(config);
         connected.set(true);
     }
 
     public DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
         this.config = config;
         this.listener = listener;
+        this.provider = TransportProvider.lookup(config);
         connected.set(true);
     }
 
@@ -142,8 +144,11 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
 
     private Transport getTransport(String name) {
         Transport transport = transports.computeIfAbsent(name, name2 -> {
-            TransportProvider provider = TransportProvider.lookup(config);
-            return provider.create(name, config);
+            if (provider != null) {
+                return provider.create(name, config);
+            }
+            TransportProvider p = TransportProvider.lookup(config);
+            return p.create(name, config);
         });
         return transport;
     }

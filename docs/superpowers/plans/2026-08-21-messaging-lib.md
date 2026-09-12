@@ -1530,7 +1530,7 @@ class MessagingFactoryTest {
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all tests green
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```powershell
 git add -A

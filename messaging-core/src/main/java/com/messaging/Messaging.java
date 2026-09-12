@@ -25,8 +25,8 @@ public final class Messaging {
         MessagingListener rawListener = config.listener();
         MessagingListener safeListener = wrapSafe(rawListener);
         // Resolve transport eagerly so that a missing provider fails fast
-        TransportProvider.lookup(config);
-        return new DefaultMessageBus(config, safeListener);
+        TransportProvider provider = TransportProvider.lookup(config);
+        return new DefaultMessageBus(config, safeListener, provider);
     }
 
     /**
