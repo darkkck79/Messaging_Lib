@@ -81,4 +81,9 @@ class MessageTest {
         Message b = new Message("world".getBytes(), Map.of());
         assertThat(a).isNotEqualTo(b);
     }
+
+    @Test void toStringRepresentation() {
+        Message msg = new Message("hello".getBytes(), Map.of("key", "val"));
+        assertThat(msg.toString()).isEqualTo("Message[body=5 bytes, headers={key=val}]");
+    }
 }
