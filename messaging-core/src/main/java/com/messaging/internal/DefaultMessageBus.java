@@ -4,194 +4,93 @@ import com.messaging.*;
 import com.messaging.config.MessagingConfig;
 import com.messaging.spi.Transport;
 import com.messaging.spi.TransportProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class DefaultMessageBus implements MessageBus, MessagingListener {
+public final class DefaultMessageBus implements MessageBus {
+    private static final Logger log = LoggerFactory.getLogger(DefaultMessageBus.class);
 
-    private final MessagingConfig config;
-    private final Map<String, Transport> transports = new ConcurrentHashMap<>();
-    private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final AtomicReference<ConnectionState> stateRef = new AtomicReference<>(ConnectionState.DISCONNECTED);
-    private final MessagingListener listener;
     private final TransportProvider provider;
+    private final MessagingConfig config;
+    private final MessagingListener listener;
+    private volatile boolean closed;
 
-    public DefaultMessageBus(MessagingConfig config) {
-        this.config = config;
-        this.listener = config.listener();
-        this.provider = TransportProvider.lookup(config);
-        connected.set(true);
-    }
-
-    public DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
+    public DefaultMessageBus(Transport transport, MessagingConfig config, MessagingListener listener) {
+        this.provider = null;
         this.config = config;
         this.listener = listener;
-        this.provider = TransportProvider.lookup(config);
-        connected.set(true);
+        // The transport itself manages connectivity
     }
 
     public DefaultMessageBus(MessagingConfig config, MessagingListener listener, TransportProvider provider) {
+        this.provider = provider;
         this.config = config;
         this.listener = listener;
-        this.provider = provider;
-        connected.set(true);
     }
 
     @Override
-    public Subscription subscribe(Topic topic, MessageHandler handler, TypedHandler<?> typedHandler) {
-        checkConnected();
-        Transport transport = getTransport(topic.name());
-        Transport.SubscriptionImpl sub = transport.subscribe(topic.name(), isolate(topic, handler), typedHandler);
-        stateRef.set(ConnectionState.CONNECTED);
-        return sub::close;
-    }
-
-    @Override
-    public Subscription subscribe(Queue queue, MessageHandler handler, TypedHandler<?> typedHandler) {
-        checkConnected();
-        Transport transport = getTransport(queue.name());
-        Transport.SubscriptionImpl sub = transport.subscribe(queue.name(), isolate(queue, handler), typedHandler);
-        stateRef.set(ConnectionState.CONNECTED);
-        return sub::close;
-    }
-
-    /**
-     * Wraps a handler so a thrown exception (or a future that completes exceptionally)
-     * is reported to the listener instead of propagating into the transport's delivery loop,
-     * which would otherwise abort delivery to any remaining subscribers.
-     */
-    private MessageHandler isolate(Destination destination, MessageHandler handler) {
-        return message -> {
-            try {
-                java.util.concurrent.CompletableFuture<Void> result = handler.handle(message);
-                return result.handle((value, error) -> {
-                    if (error != null) {
-                        listener.onError(destination, error);
-                    } else {
-                        listener.onConsumed(destination);
-                    }
-                    return null;
-                });
-            } catch (Throwable error) {
-                listener.onError(destination, error);
-                return java.util.concurrent.CompletableFuture.completedFuture(null);
+    public CompletableFuture<Void> publish(Destination destination, Message message) {
+        checkNotClosed();
+        HeaderValidator.validateForPublish(message.headers());
+        return transport().publish(destination, message).whenComplete((v, ex) -> {
+            if (ex != null) {
+                try { listener.onError(destination, ex); }
+                catch (Exception e) { log.warn("Listener threw on onError", e); }
+            } else {
+                try { listener.onPublished(destination); }
+                catch (Exception e) { log.warn("Listener threw on onPublished", e); }
             }
-        };
+        });
     }
 
     @Override
-    public <T> TypedChannel<T> typed(Topic topic, Codec<T> codec) {
-        checkConnected();
-        return new DefaultTypedChannel<>(topic.name(), codec, getTransport(topic.name()));
+    public CompletableFuture<Subscription> subscribe(Destination destination, MessageHandler handler) {
+        checkNotClosed();
+        return transport().subscribe(destination, handler);
     }
 
     @Override
-    public <T> TypedChannel<T> typed(Queue queue, Codec<T> codec) {
-        checkConnected();
-        return new DefaultTypedChannel<>(queue.name(), codec, getTransport(queue.name()));
-    }
-
-    @Override
-    public void publish(Topic topic, byte[] body, Map<String, String> headers) {
-        checkConnected();
-        HeaderValidator.validateForPublish(headers);
-        Transport transport = getTransport(topic.name());
-        transport.publish(topic.name(), body, headers);
-        listener.onPublished(topic);
-    }
-
-    @Override
-    public void publish(Queue queue, byte[] body, Map<String, String> headers) {
-        checkConnected();
-        HeaderValidator.validateForPublish(headers);
-        Transport transport = getTransport(queue.name());
-        transport.publish(queue.name(), body, headers);
-        listener.onPublished(queue);
-    }
-
-    @Override
-    public void onPublished(Destination destination) {
-        listener.onPublished(destination);
-    }
-
-    @Override
-    public void onConsumed(Destination destination) {
-        listener.onConsumed(destination);
-    }
-
-    @Override
-    public void onError(Destination destination, Throwable error) {
-        listener.onError(destination, error);
-    }
-
-    @Override
-    public void onConnectionStateChanged(ConnectionState state) {
-        listener.onConnectionStateChanged(state);
+    public <T> TypedChannel<T> typed(Destination destination, Codec<T> codec) {
+        checkNotClosed();
+        return new TypedChannel<>(this, destination, codec);
     }
 
     @Override
     public void close() {
-        for (Transport t : transports.values()) {
-            t.close();
-        }
-        transports.clear();
-        stateRef.set(ConnectionState.DISCONNECTED);
-        connected.set(false);
+        if (closed) return;
+        closed = true;
+        try { transport().close(config.closeTimeout()); }
+        catch (Exception e) { log.warn("Error closing transport", e); }
     }
 
-    private Transport getTransport(String name) {
-        Transport transport = transports.computeIfAbsent(name, name2 -> {
-            if (provider != null) {
-                return provider.create(name, config);
-            }
-            TransportProvider p = TransportProvider.lookup(config);
-            return p.create(name, config);
-        });
-        return transport;
+    private Transport transport() {
+        return (provider != null) ? provider.open(config, listener) : new InternalTransport();
     }
 
-    private void checkConnected() {
-        if (!connected.get()) {
-            throw new MessagingException("Not connected. Call connect() first.");
-        }
+    private void checkNotClosed() {
+        if (closed) throw new IllegalStateException("MessageBus is closed");
     }
 
-    public boolean isConnected() {
-        return connected.get();
-    }
-
-    public ConnectionState state() {
-        return stateRef.get();
-    }
-
-    private static class DefaultTypedChannel<T> implements TypedChannel<T> {
-        private final String destinationName;
-        private final Codec<T> codec;
-        private final Transport transport;
-
-        DefaultTypedChannel(String destinationName, Codec<T> codec, Transport transport) {
-            this.destinationName = destinationName;
-            this.codec = codec;
-            this.transport = transport;
+    private static class InternalTransport implements Transport {
+        @Override
+        public java.util.concurrent.CompletableFuture<Void> publish(Destination destination, Message message) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public void publish(T message, Map<String, String> headers) {
-            HeaderValidator.validateForPublish(headers);
-            transport.publish(destinationName, codec.encode(message), headers);
+        public java.util.concurrent.CompletableFuture<Subscription> subscribe(Destination destination, MessageHandler handler) {
+            return java.util.concurrent.CompletableFuture.completedFuture(new Subscription() {
+                @Override
+                public void close() {}
+            });
         }
 
         @Override
-        public Subscription subscribe(TypedHandler<T> handler) {
-            final MessageHandler proxy = msg -> {
-                T decoded = codec.decode(msg.body());
-                return handler.handle(decoded, msg.headers());
-            };
-            Transport.SubscriptionImpl sub = transport.subscribe(destinationName, proxy, null);
-            return sub::close;
-        }
+        public void close(java.time.Duration timeout) {}
     }
 }
