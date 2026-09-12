@@ -17,6 +17,7 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     private final AtomicBoolean connected = new AtomicBoolean(false);
     private final AtomicReference<ConnectionState> stateRef = new AtomicReference<>(ConnectionState.DISCONNECTED);
     private final MessagingListener listener;
+    private volatile TransportProvider provider;
 
     public DefaultMessageBus(MessagingConfig config) {
         this.config = config;
@@ -27,6 +28,13 @@ public class DefaultMessageBus implements MessageBus, MessagingListener {
     public DefaultMessageBus(MessagingConfig config, MessagingListener listener) {
         this.config = config;
         this.listener = listener;
+        connected.set(true);
+    }
+
+    public DefaultMessageBus(MessagingConfig config, MessagingListener listener, TransportProvider provider) {
+        this.config = config;
+        this.listener = listener;
+        this.provider = provider;
         connected.set(true);
     }
 
