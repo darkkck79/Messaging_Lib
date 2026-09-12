@@ -19,7 +19,7 @@
 - **YAGNI / DRY / KISS** per `CLAUDE.md`. Minimal viable code, no over-engineering.
 - **TDD**: Write failing tests first, then minimal implementation.
 - **Skip-is-failure:** A `TestListener` fails the build on any `SKIPPED` test result.
-- **No commits until verification passes.** Run `/simplify` before each commit.
+- **No commits until verification passes.**
 - **Docs woven in:** Update relevant documentation with each task.
 
 ---
@@ -423,7 +423,7 @@ dependencies {
 Run: `.\gradlew.bat build`
 Expected: BUILD SUCCESSFUL (all modules compile, no tests yet)
 
-- [-] **Step 12: Run `/simplify` and commit**
+- [-] **Step 12: Commit**
 
 ```powershell
 git add -A
@@ -1058,7 +1058,7 @@ public final class MessagingConfig {
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all Destination, Message, and MessagingConfig tests green
 
-- [x] **Step 14: Run `/simplify` and commit**
+- [x] **Step 14: Commit**
 
 ```powershell
 git add -A
@@ -1530,7 +1530,7 @@ class MessagingFactoryTest {
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all tests green
 
-- [ ] **Step 12: Run `/simplify` and commit**
+- [ ] **Step 12: Commit**
 
 ```powershell
 git add -A
@@ -1623,7 +1623,7 @@ Uses JUnit Platform `LauncherFactory` to run specific test methods from each fau
 Run: `.\gradlew.bat :messaging-conformance:test -i`
 Expected: PASS — meta-test confirms all three faulty transports are caught
 
-- [ ] **Step 9: Run `/simplify` and commit**
+- [ ] **Step 9: Commit**
 
 ```powershell
 git add -A
@@ -1686,7 +1686,7 @@ Adds Artemis-specific test: `redeliveredHeaderSetOnRedelivery()` — verifies `m
 Run: `.\gradlew.bat :messaging-jms:integrationTest -i`
 Expected: PASS (Docker required)
 
-- [ ] **Step 7: Run `/simplify` and commit**
+- [ ] **Step 7: Commit**
 
 ```powershell
 git add -A
@@ -1720,7 +1720,7 @@ Config: `jms://app:passw0rd@host:1414` with passthrough `channel=DEV.APP.SVRCONN
 Run: `.\gradlew.bat :messaging-jms:integrationTest -i`
 Expected: PASS — both Artemis and IBM MQ pass. IBM MQ image is ~1.5GB, first pull may take several minutes.
 
-- [ ] **Step 3: Run `/simplify` and commit**
+- [ ] **Step 3: Commit**
 
 ```powershell
 git add -A
@@ -1782,7 +1782,7 @@ Adds Kafka-specific tests:
 Run: `.\gradlew.bat :messaging-kafka:integrationTest -i`
 Expected: PASS (Docker required)
 
-- [ ] **Step 7: Run `/simplify` and commit**
+- [ ] **Step 7: Commit**
 
 ```powershell
 git add -A
@@ -1872,7 +1872,7 @@ public final class JsonCodec<T> implements Codec<T> {
 Run: `.\gradlew.bat :messaging-codec-json:test -i`
 Expected: PASS
 
-- [ ] **Step 4: Run `/simplify` and commit**
+- [ ] **Step 4: Commit**
 
 ```powershell
 git add -A
@@ -1915,7 +1915,7 @@ Research Solace PubSub+ Java API and map each spec section. Key areas:
 - §G: Message properties similar to headers
 - §K: Native client reconnection
 
-- [ ] **Step 3: Run `/simplify` and commit**
+- [ ] **Step 3: Commit**
 
 ```powershell
 git add -A
@@ -1956,9 +1956,7 @@ All must pass. No SKIPPED results.
 
 Write a small example that publishes and subscribes unchanged against all three brokers by changing only `messaging.url`. This is the product claim — verify it directly.
 
-- [ ] **Step 5: Run `/simplify` across the entire project**
-
-- [ ] **Step 6: Final commit**
+- [ ] **Step 5: Final commit**
 
 ```powershell
 git add -A
