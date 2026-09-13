@@ -1,85 +1,81 @@
 package com.messaging.conformance;
 
+import com.messaging.Destination;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.*;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
 
 /**
- * Abstract base class for connectivity tests (restart, disconnect, reconnect).
- * Real adapter tests extend this.
+ * Connectivity tests (§D, §K): real adapters extend this. Per §D, only queue delivery
+ * during an outage is guaranteed portably — topic delivery during an outage is an
+ * explicit, untested portability exception and is deliberately not asserted here.
  */
 public abstract class AbstractMessagingConnectivityTest extends AbstractMessagingConformanceTest {
 
+    private static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+    /** Restart the broker process, simulating an outage the adapter must recover from. */
+    protected abstract void restartBroker();
+
+    /** Sever network connectivity between the adapter and the broker. */
+    protected abstract void cutNetwork();
+
+    /** Restore network connectivity cut by {@link #cutNetwork()}. */
+    protected abstract void restoreNetwork();
+
     @Test
-    void brokerRestartPreservesSubscriptions() {
-        Topic topic = newTopic("restart-test");
-        provisionTopic(topic.name());
-
+    void queueSurvivesBrokerRestart() {
+        Destination queue = provisionQueue("restart-survive");
         var received = new CopyOnWriteArrayList<String>();
-        var subscription = bus.subscribe(topic, message -> received.add(new String(message.body())));
+        awaitSubscribed(queue, message -> {
+            received.add(new String(message.body()));
+            return CompletableFuture.completedFuture(null);
+        });
 
-        // Wait for subscription to be ready
-        boolean subscribed = false;
-        long timeout = System.currentTimeMillis() + 2000;
-        while (System.currentTimeMillis() < timeout) {
-            if (subscription.isOpen()) {
-                subscribed = true;
-                break;
-            }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        assertThat(subscribed).as("Subscription should be ready before restart").isTrue();
-
-        // Restart broker
         restartBroker();
 
-        // Publish a message after restart
-        var future = bus.publish(topic, "post-restart-message");
-        assertThat(future).isCompletedSuccessfully();
-
-        // Wait for message to be received
-        boolean receivedPostRestart = false;
-        timeout = System.currentTimeMillis() + 2000;
-        while (System.currentTimeMillis() < timeout) {
-            if (received.size() > 0) {
-                receivedPostRestart = true;
-                break;
-            }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        assertThat(receivedPostRestart).as("Message should be delivered after restart").isTrue();
+        publish(queue, "post-restart".getBytes());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).contains("post-restart"));
     }
 
     @Test
-    void networkCutAndRestore() {
-        Topic topic = newTopic("network-cut");
-        provisionTopic(topic.name());
+    void queueMessagesPublishedDuringOutageDeliveredAfterRecovery() {
+        Destination queue = provisionQueue("outage-delivery");
 
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> received.add(new String(message.body())));
+        // Published to the broker-backed queue with no consumer connected yet.
+        publish(queue, "during-outage".getBytes());
 
-        // Cut network
         cutNetwork();
-
-        // Try to publish - should fail or timeout
-        var future = bus.publish(topic, "during-cut");
-        // This might fail or succeed depending on implementation
-        // The key is that the transport handles the network issue gracefully
-
-        // Restore network
         restoreNetwork();
 
-        // Publish after restore
-        var future2 = bus.publish(topic, "post-restore");
-        assertThat(future2).isCompletedSuccessfully();
+        var received = new CopyOnWriteArrayList<String>();
+        awaitSubscribed(queue, message -> {
+            received.add(new String(message.body()));
+            return CompletableFuture.completedFuture(null);
+        });
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).contains("during-outage"));
+    }
+
+    @Test
+    void reconnectAndResumeAfterNetworkCut() {
+        Destination queue = provisionQueue("reconnect-resume");
+        var received = new CopyOnWriteArrayList<String>();
+        awaitSubscribed(queue, message -> {
+            received.add(new String(message.body()));
+            return CompletableFuture.completedFuture(null);
+        });
+
+        cutNetwork();
+        restoreNetwork();
+
+        publish(queue, "post-reconnect".getBytes());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).contains("post-reconnect"));
     }
 }

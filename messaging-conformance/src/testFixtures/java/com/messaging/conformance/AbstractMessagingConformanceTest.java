@@ -1,22 +1,30 @@
 package com.messaging.conformance;
 
 import com.messaging.*;
-import com.messaging.config.MessagingConfig;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
+
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
-import static org.assertj.core.api.Assertions.*;
 
 /**
- * Abstract base class for all messaging conformance tests.
- * Concrete implementations must provide createBus(), provisionTopic(), provisionQueue(),
- * newTopic(), newQueue(), restartBroker(), cutNetwork(), restoreNetwork().
+ * Behavioural contract for every transport, per the design spec (§A, §D, §F, §G, §H, §J).
+ * Concrete subclasses supply a bus and destination provisioning; faulty in-memory
+ * transports extend this to prove the suite itself catches real violations.
  */
 public abstract class AbstractMessagingConformanceTest {
 
     protected MessageBus bus;
-    protected final CountDownLatch latch = new CountDownLatch(1);
 
     @BeforeEach
     void setUp() {
@@ -25,99 +33,93 @@ public abstract class AbstractMessagingConformanceTest {
 
     @AfterEach
     void tearDown() {
-        if (bus != null) {
-            bus.close();
-        }
+        if (bus != null) bus.close();
     }
 
-    /** Create the MessageBus for this conformance test. */
+    /** Create the MessageBus under test. */
     protected abstract MessageBus createBus();
 
-    /** Provision a topic (e.g., create via the broker). */
+    /** Provision a topic out-of-band and return its Destination. */
     protected abstract Destination provisionTopic(String name);
 
-    /** Provision a queue (e.g., create via the broker). */
+    /** Provision a queue out-of-band and return its Destination. */
     protected abstract Destination provisionQueue(String name);
 
-    /** Create a new topic for testing (without broker provisioning if possible). */
-    protected Topic newTopic(String name) {
-        return Topic.of(name);
-    }
+    private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
-    /** Create a new queue for testing (without broker provisioning if possible). */
-    protected Queue newQueue(String name) {
-        return Queue.of(name);
-    }
-
-    /** Restart the broker. Override to implement broker restart. */
-    protected void restartBroker() {}
-
-    /** Cut the network. Override to implement network interruption. */
-    protected void cutNetwork() {}
-
-    /** Restore the network. Override to implement network restoration. */
-    protected void restoreNetwork() {}
-
-    // ==================== Payload & Headers ====================
+    // ==================== Payload & headers ====================
 
     @Test
     void bodyRoundTrip() {
-        Topic topic = newTopic("body-rt");
-        provisionTopic(topic.name());
+        Destination topic = provisionTopic("body-rt");
+        var received = new CopyOnWriteArrayList<byte[]>();
+        awaitSubscribed(topic, message -> {
+            received.add(message.body());
+            return CompletableFuture.completedFuture(null);
+        });
 
-        String payload = "Hello, World!";
-        var future = bus.publish(topic, payload.getBytes());
-        assertThat(future).isCompletedSuccessfully();
+        publish(topic, "Hello, World!".getBytes());
+
+        await().atMost(TIMEOUT).untilAsserted(() ->
+            assertThat(received).hasSize(1));
+        assertThat(new String(received.get(0))).isEqualTo("Hello, World!");
     }
 
     @Test
     void emptyBodyRoundTrip() {
-        Topic topic = newTopic("empty-body");
-        provisionTopic(topic.name());
+        Destination topic = provisionTopic("empty-body");
+        var received = new CopyOnWriteArrayList<byte[]>();
+        awaitSubscribed(topic, message -> {
+            received.add(message.body());
+            return CompletableFuture.completedFuture(null);
+        });
 
-        var future = bus.publish(topic, new byte[0]);
-        assertThat(future).isCompletedSuccessfully();
+        publish(topic, new byte[0]);
+
+        await().atMost(TIMEOUT).untilAsserted(() ->
+            assertThat(received).hasSize(1));
+        assertThat(received.get(0)).isEmpty();
     }
 
     @Test
     void headersRoundTrip() {
-        Topic topic = newTopic("headers-rt");
-        provisionTopic(topic.name());
+        Destination topic = provisionTopic("headers-rt");
+        var received = new CopyOnWriteArrayList<Map<String, String>>();
+        awaitSubscribed(topic, message -> {
+            received.add(message.headers());
+            return CompletableFuture.completedFuture(null);
+        });
 
         var headers = Map.of("key1", "value1", "key2", "value2");
-        var future = bus.publish(topic, new byte[0], headers);
-        assertThat(future).isCompletedSuccessfully();
+        bus.publish(topic, new Message("body".getBytes(), headers)).join();
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).hasSize(1));
+        assertThat(received.get(0)).containsEntry("key1", "value1").containsEntry("key2", "value2");
     }
 
     @Test
     void invalidHeaderNameRejectedOnPublish() {
-        Topic topic = newTopic("invalid-header");
-        provisionTopic(topic.name());
-
-        var headers = Map.of("bad header!", "value");
-        assertThatThrownBy(() -> bus.publish(topic, new byte[0], headers))
+        Destination topic = provisionTopic("invalid-header");
+        assertThatThrownBy(() ->
+            bus.publish(topic, new Message(new byte[0], Map.of("bad header!", "value"))))
             .isInstanceOf(MessagingException.class)
             .hasMessageContaining("bad header!");
     }
 
     @Test
     void reservedHeaderPrefixRejectedOnPublish() {
-        Topic topic = newTopic("reserved-jms");
-        provisionTopic(topic.name());
-
-        var headers = Map.of("JMSCorrelationID", "value");
-        assertThatThrownBy(() -> bus.publish(topic, new byte[0], headers))
+        Destination topic = provisionTopic("reserved-jms");
+        assertThatThrownBy(() ->
+            bus.publish(topic, new Message(new byte[0], Map.of("JMSCorrelationID", "value"))))
             .isInstanceOf(MessagingException.class)
             .hasMessageContaining("JMS");
     }
 
     @Test
     void reservedMessagingPrefixRejectedOnPublish() {
-        Topic topic = newTopic("reserved-messaging");
-        provisionTopic(topic.name());
-
-        var headers = Map.of("messaging.internal", "value");
-        assertThatThrownBy(() -> bus.publish(topic, new byte[0], headers))
+        Destination topic = provisionTopic("reserved-messaging");
+        assertThatThrownBy(() ->
+            bus.publish(topic, new Message(new byte[0], Map.of("messaging.internal", "value"))))
             .isInstanceOf(MessagingException.class)
             .hasMessageContaining("messaging.");
     }
@@ -126,159 +128,144 @@ public abstract class AbstractMessagingConformanceTest {
 
     @Test
     void topicFanOut() {
-        Topic topic = newTopic("fan-out");
-        provisionTopic(topic.name());
+        Destination topic = provisionTopic("fan-out");
+        var receivedA = new CopyOnWriteArrayList<String>();
+        var receivedB = new CopyOnWriteArrayList<String>();
+        awaitSubscribed(topic, recordingHandler(receivedA));
+        awaitSubscribed(topic, recordingHandler(receivedB));
 
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> received.add(new String(message.body())));
+        publish(topic, "fan-out-payload".getBytes());
 
-        var future = bus.publish(topic, "fan-out-payload");
-        assertThat(future).isCompletedSuccessfully();
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(receivedA).containsExactly("fan-out-payload");
+            assertThat(receivedB).containsExactly("fan-out-payload");
+        });
     }
 
     @Test
     void queueCompetingConsumers() {
-        Queue queue = newQueue("competing");
-        provisionQueue(queue.name());
-
+        Destination queue = provisionQueue("competing");
         var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(queue, message -> received.add(new String(message.body())));
+        awaitSubscribed(queue, recordingHandler(received));
+        awaitSubscribed(queue, recordingHandler(received));
 
-        var future = bus.publish(queue, "queue-payload");
-        assertThat(future).isCompletedSuccessfully();
+        for (int i = 0; i < 4; i++) publish(queue, ("m" + i).getBytes());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).hasSize(4));
+        assertThat(received).containsExactlyInAnyOrder("m0", "m1", "m2", "m3");
     }
 
     // ==================== Settlement (§A) ====================
 
     @Test
     void redeliveryOnExceptionalFuture() {
-        Topic topic = newTopic("redeliver-future");
-        provisionTopic(topic.name());
-
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> {
-            if (message.body().length > 0) {
-                received.add(new String(message.body()));
-            }
-            return CompletableFuture.failedFuture(new RuntimeException("handler failed"));
-        });
-
-        var future = bus.publish(topic, "redeliver-future-payload");
-        assertThat(future).isCompletedSuccessfully();
+        assertRedelivered(handlerThatFailsOnceThenSucceeds(
+            (count, message) -> CompletableFuture.failedFuture(new RuntimeException("handler failed"))));
     }
 
     @Test
     void redeliveryOnSynchronousThrow() {
-        Topic topic = newTopic("redeliver-throw");
-        provisionTopic(topic.name());
-
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> {
-            if (message.body().length > 0) {
-                received.add(new String(message.body()));
-            }
+        assertRedelivered(handlerThatFailsOnceThenSucceeds((count, message) -> {
             throw new RuntimeException("sync fail");
-        });
-
-        var future = bus.publish(topic, "redeliver-throw-payload");
-        assertThat(future).isCompletedSuccessfully();
+        }));
     }
 
     @Test
     void redeliveryOnNullFuture() {
-        Topic topic = newTopic("redeliver-null");
-        provisionTopic(topic.name());
-
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> {
-            if (message.body().length > 0) {
-                received.add(new String(message.body()));
-            }
-            return null;
-        });
-
-        var future = bus.publish(topic, "redeliver-null-payload");
-        assertThat(future).isCompletedSuccessfully();
+        assertRedelivered(handlerThatFailsOnceThenSucceeds((count, message) -> null));
     }
 
     @Test
     void redeliveryOnCancelledFuture() {
-        Topic topic = newTopic("redeliver-cancel");
-        provisionTopic(topic.name());
-
-        var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> {
-            if (message.body().length > 0) {
-                received.add(new String(message.body()));
-            }
-            var f = CompletableFuture.<Void>futureCompletionStage()
-                .exceptionally(ex -> { throw new RuntimeException("cancel"); });
+        assertRedelivered(handlerThatFailsOnceThenSucceeds((count, message) -> {
+            var f = new CompletableFuture<Void>();
+            f.cancel(true);
             return f;
-        });
+        }));
+    }
 
-        var future = bus.publish(topic, "redeliver-cancel-payload");
-        assertThat(future).isCompletedSuccessfully();
+    private void assertRedelivered(MessageHandler handler) {
+        Destination queue = provisionQueue("redeliver-" + System.nanoTime());
+        awaitSubscribed(queue, handler);
+        publish(queue, "payload".getBytes());
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(redeliverAttempts.get()).isGreaterThanOrEqualTo(2));
+    }
+
+    private final AtomicInteger redeliverAttempts = new AtomicInteger();
+
+    private interface FailOnceBody {
+        CompletableFuture<Void> onFirstAttempt(int attemptNumber, Message message);
+    }
+
+    private MessageHandler handlerThatFailsOnceThenSucceeds(FailOnceBody firstAttemptBehaviour) {
+        redeliverAttempts.set(0);
+        return message -> {
+            int attempt = redeliverAttempts.incrementAndGet();
+            if (attempt == 1) return firstAttemptBehaviour.onFirstAttempt(attempt, message);
+            return CompletableFuture.completedFuture(null);
+        };
     }
 
     @Test
     void successfulHandlerNotRedelivered() {
-        Topic topic = newTopic("success-no-redeliver");
-        provisionTopic(topic.name());
-
-        var received = new CopyOnWriteArrayList<String>();
-        int count = 0;
-        bus.subscribe(topic, message -> {
-            count++;
-            if (message.body().length > 0) {
-                received.add(new String(message.body()));
-            }
+        Destination queue = provisionQueue("success-no-redeliver");
+        var count = new AtomicInteger();
+        awaitSubscribed(queue, message -> {
+            count.incrementAndGet();
             return CompletableFuture.completedFuture(null);
         });
 
-        var future = bus.publish(topic, "success-no-redeliver-payload");
-        assertThat(future).isCompletedSuccessfully();
+        publish(queue, "payload".getBytes());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(count.get()).isEqualTo(1));
+        assertThatCode(() -> Thread.sleep(300)).doesNotThrowAnyException();
+        assertThat(count.get()).isEqualTo(1);
     }
 
     // ==================== Lifecycle (§D, §J) ====================
 
     @Test
     void subscribeFutureMeansReady() {
-        Topic topic = newTopic("subscribe-ready");
-        provisionTopic(topic.name());
+        Destination topic = provisionTopic("subscribe-ready");
+        var received = new CopyOnWriteArrayList<String>();
+        bus.subscribe(topic, recordingHandler(received)).join();
 
-        var future = bus.subscribe(topic, message -> CompletableFuture.completedFuture(null));
-        assertThat(future).isCompletedSuccessfully();
+        publish(topic, "immediate".getBytes());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).containsExactly("immediate"));
     }
 
     @Test
-    void subscriptionCloseStopsDelivery() {
-        Topic topic = newTopic("close-stop");
-        provisionTopic(topic.name());
+    void subscriptionCloseStopsDelivery() throws Exception {
+        Destination topic = provisionTopic("close-stop");
+        var received = new CopyOnWriteArrayList<String>();
+        Subscription subscription = bus.subscribe(topic, recordingHandler(received)).join();
 
-        var subscription = bus.subscribe(topic, message -> CompletableFuture.completedFuture(null));
         subscription.close();
+        publish(topic, "after-close".getBytes());
+
+        Thread.sleep(300);
+        assertThat(received).isEmpty();
     }
 
     @Test
     void repeatedCloseIsIdempotent() {
-        Topic topic = newTopic("repeated-close");
-        provisionTopic(topic.name());
-
-        var subscription = bus.subscribe(topic, message -> CompletableFuture.completedFuture(null));
-        subscription.close();
-        subscription.close();
+        Destination topic = provisionTopic("repeated-close");
+        Subscription subscription = bus.subscribe(topic,
+            message -> CompletableFuture.completedFuture(null)).join();
+        assertThatCode(() -> { subscription.close(); subscription.close(); })
+            .doesNotThrowAnyException();
     }
 
     @Test
     void busCloseIsIdempotent() {
-        bus.close();
-        bus.close();
+        assertThatCode(() -> { bus.close(); bus.close(); }).doesNotThrowAnyException();
     }
 
     @Test
     void apiCallAfterBusCloseThrows() {
         bus.close();
-        assertThatThrownBy(() -> bus.publish(newTopic("closed"), new byte[0]))
+        assertThatThrownBy(() -> bus.publish(Topic.of("closed"), new byte[0]))
             .isInstanceOf(IllegalStateException.class);
     }
 
@@ -286,92 +273,58 @@ public abstract class AbstractMessagingConformanceTest {
 
     @Test
     void publishToMissingDestinationFails() {
-        Topic topic = newTopic("missing-dest");
-        // Do NOT provision this topic
-
-        assertThatThrownBy(() -> bus.publish(topic, new byte[0]))
-            .isInstanceOf(MessagingException.class);
+        Topic topic = Topic.of("missing-dest-" + System.nanoTime());
+        assertThatThrownBy(() -> bus.publish(topic, new byte[0]).join())
+            .hasCauseInstanceOf(MessagingException.class);
     }
 
     @Test
     void subscribeToMissingDestinationFails() {
-        Topic topic = newTopic("missing-dest-sub");
-        // Do NOT provision this topic
-
-        assertThatThrownBy(() -> bus.subscribe(topic, message -> CompletableFuture.completedFuture(null)))
-            .isInstanceOf(MessagingException.class);
-        // Clean up - if the subscription somehow succeeded, close it
-        try {
-            bus.close();
-        } catch (Exception e) {
-            // ignore
-        }
+        Topic topic = Topic.of("missing-dest-sub-" + System.nanoTime());
+        assertThatThrownBy(() ->
+            bus.subscribe(topic, message -> CompletableFuture.completedFuture(null)).join())
+            .hasCauseInstanceOf(MessagingException.class);
     }
 
     @Test
     void listenerThrowDoesNotChangeDelivery() {
-        Topic topic = newTopic("listener-throw");
-        provisionTopic(topic.name());
-
+        Destination topic = provisionTopic("listener-throw");
         var received = new CopyOnWriteArrayList<String>();
-        var badListener = new MessagingListener() {
-            @Override
-            public void onPublished(Destination d) {
-                throw new RuntimeException("listener boom");
-            }
-        };
-        // Create a new bus with the bad listener - but we can't easily do that
-        // The point is that the listener throws but the message is still delivered
-        bus.subscribe(topic, message -> {
-            received.add(new String(message.body()));
-            return CompletableFuture.completedFuture(null);
-        });
+        awaitSubscribed(topic, recordingHandler(received));
 
-        var future = bus.publish(topic, "listener-throw-payload");
-        assertThat(future).isCompletedSuccessfully();
+        assertThatCode(() -> publish(topic, "payload".getBytes())).doesNotThrowAnyException();
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).containsExactly("payload"));
     }
 
     // ==================== Ordering ====================
 
     @Test
     void concurrencyOnePreservesOrder() {
-        Topic topic = newTopic("order-preserving");
-        provisionTopic(topic.name());
-
+        Destination topic = provisionTopic("order-preserving");
         var received = new CopyOnWriteArrayList<String>();
-        bus.subscribe(topic, message -> {
-            received.add(new String(message.body()));
+        awaitSubscribed(topic, recordingHandler(received));
+
+        for (int i = 0; i < 5; i++) publish(topic, ("msg-" + i).getBytes());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).hasSize(5));
+        assertThat(received).containsExactly("msg-0", "msg-1", "msg-2", "msg-3", "msg-4");
+    }
+
+    // ==================== Helpers ====================
+
+    protected void publish(Destination destination, byte[] body) {
+        bus.publish(destination, body).join();
+    }
+
+    protected void awaitSubscribed(Destination destination, MessageHandler handler) {
+        bus.subscribe(destination, handler).join();
+    }
+
+    /** A handler that decodes the body as UTF-8 and appends it to {@code sink}, then settles. */
+    protected static MessageHandler recordingHandler(CopyOnWriteArrayList<String> sink) {
+        return message -> {
+            sink.add(new String(message.body()));
             return CompletableFuture.completedFuture(null);
-        });
-
-        // Publish 5 messages
-        for (int i = 0; i < 5; i++) {
-            bus.publish(topic, "msg-" + i);
-        }
-
-        // Wait for all messages to be received
-        boolean allReceived = false;
-        long timeout = System.currentTimeMillis() + 5000;
-        while (System.currentTimeMillis() < timeout) {
-            if (received.size() == 5) {
-                // Check order
-                boolean inOrder = true;
-                for (int i = 0; i < 5; i++) {
-                    if (!received.get(i).equals("msg-" + i)) {
-                        inOrder = false;
-                        break;
-                    }
-                }
-                allReceived = inOrder;
-                break;
-            }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        assertThat(allReceived).as("Messages should be received in order").isTrue();
+        };
     }
 }
