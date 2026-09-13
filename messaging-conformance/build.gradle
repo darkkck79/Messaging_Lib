@@ -12,9 +12,3 @@ dependencies {
     testImplementation project(':messaging-core')
     testImplementation libs.junit.platform.launcher
 }
-
-test {
-    filter {
-        excludeTestsMatching 'com.messaging.conformance.faulty.*Conformance'
-    }
-}

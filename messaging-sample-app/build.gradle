@@ -1,0 +1,13 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation testFixtures(project(':messaging-conformance'))
+    implementation libs.junit.platform.launcher
+    runtimeOnly libs.logback.classic
+}
+
+application {
+    mainClass = 'com.messaging.sample.SampleApp'
+}

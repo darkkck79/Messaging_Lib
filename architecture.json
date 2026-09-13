@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Messaging_Lib Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [1260, 560],
+    "views": [
+      {
+        "id": "publish-path",
+        "label": "Publish and delivery path",
+        "focus": ["client", "typed_channel", "bus", "spi", "jms_adapter", "kafka_adapter", "artemis", "ibmmq", "kafka_cluster"],
+        "note": "Trace message dispatch from client and typed channels through the bus to JMS and Kafka brokers."
+      },
+      {
+        "id": "owner-loop",
+        "label": "Owner loop and settlement",
+        "focus": ["bus", "spi", "jms_adapter", "kafka_adapter"],
+        "note": "Isolate adapter owner loops ensuring handlers never touch thread-confined broker clients."
+      },
+      {
+        "id": "verification",
+        "label": "Verification and observability",
+        "focus": ["config", "bus", "listener", "conformance", "spi"],
+        "note": "Verify connection discovery, non-blocking listener callbacks, and conformance negative controls."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client Application",
+      "sublabel": "Producer / Consumer",
+      "tag": "At-Least-Once",
+      "pos": [40, 240],
+      "size": [140, 64]
+    },
+    {
+      "id": "typed_channel",
+      "type": "frontend",
+      "label": "TypedChannel<T>",
+      "sublabel": "messaging-codec-json",
+      "tag": "Jackson Codec",
+      "pos": [300, 90],
+      "size": [150, 64]
+    },
+    {
+      "id": "bus",
+      "type": "backend",
+      "label": "DefaultMessageBus",
+      "sublabel": "messaging-core",
+      "tag": "HeaderValidator",
+      "pos": [300, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "config",
+      "type": "backend",
+      "label": "MessagingConfig",
+      "sublabel": "ServiceLoader & URI",
+      "tag": "Redacts Secrets",
+      "pos": [300, 390],
+      "size": [150, 64]
+    },
+    {
+      "id": "listener",
+      "type": "security",
+      "label": "MessagingListener",
+      "sublabel": "Lifecycle & Metrics",
+      "tag": "Isolated Callbacks",
+      "pos": [560, 90],
+      "size": [150, 64]
+    },
+    {
+      "id": "spi",
+      "type": "messagebus",
+      "label": "Transport SPI",
+      "sublabel": "com.messaging.spi",
+      "tag": "Provisional Contract",
+      "pos": [560, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "conformance",
+      "type": "security",
+      "label": "Conformance Suite",
+      "sublabel": "messaging-conformance",
+      "tag": "Fault Injection",
+      "pos": [560, 390],
+      "size": [150, 64]
+    },
+    {
+      "id": "jms_adapter",
+      "type": "backend",
+      "label": "JMS Adapter",
+      "sublabel": "messaging-jms",
+      "tag": "Transacted Session",
+      "pos": [800, 160],
+      "size": [150, 64]
+    },
+    {
+      "id": "kafka_adapter",
+      "type": "backend",
+      "label": "Kafka Adapter",
+      "sublabel": "messaging-kafka",
+      "tag": "Poll Owner Loop",
+      "brand": "apache-kafka",
+      "pos": [800, 320],
+      "size": [150, 64]
+    },
+    {
+      "id": "artemis",
+      "type": "cloud",
+      "label": "ActiveMQ Artemis",
+      "sublabel": "JMS 2.0 / TCP Broker",
+      "tag": "Queue & Topic",
+      "pos": [1040, 90],
+      "size": [150, 64]
+    },
+    {
+      "id": "ibmmq",
+      "type": "cloud",
+      "label": "IBM MQ",
+      "sublabel": "Enterprise QM1",
+      "tag": "DEV.QUEUE.1..3",
+      "pos": [1040, 230],
+      "size": [150, 64]
+    },
+    {
+      "id": "kafka_cluster",
+      "type": "messagebus",
+      "label": "Kafka Cluster",
+      "sublabel": "Partitioned Log",
+      "tag": "acks=all",
+      "brand": "apache-kafka",
+      "pos": [1040, 370],
+      "size": [150, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Core & SPI (messaging-core)",
+      "wraps": ["typed_channel", "bus", "config", "listener", "spi", "conformance"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Transport Adapters (Owner Loops)",
+      "wraps": ["jms_adapter", "kafka_adapter"]
+    },
+    {
+      "kind": "region",
+      "label": "Target Message Brokers",
+      "wraps": ["artemis", "ibmmq", "kafka_cluster"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-typed",
+      "from": "client",
+      "to": "typed_channel",
+      "label": "encode / decode",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "client-bus",
+      "from": "client",
+      "to": "bus",
+      "label": "publish / subscribe",
+      "variant": "emphasis"
+    },
+    {
+      "id": "client-config",
+      "from": "client",
+      "to": "config",
+      "label": "connect(uri)",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "typed-bus",
+      "from": "typed_channel",
+      "to": "bus",
+      "label": "raw bytes",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [375, 197]
+    },
+    {
+      "id": "config-bus",
+      "from": "config",
+      "to": "bus",
+      "label": "configures",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "bus-listener",
+      "from": "bus",
+      "to": "listener",
+      "label": "state events",
+      "variant": "security"
+    },
+    {
+      "id": "bus-spi",
+      "from": "bus",
+      "to": "spi",
+      "label": "delegates",
+      "variant": "emphasis",
+      "labelDy": 20
+    },
+    {
+      "id": "conformance-spi",
+      "from": "conformance",
+      "to": "spi",
+      "label": "verifies",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "spi-jms",
+      "from": "spi",
+      "to": "jms_adapter",
+      "label": "jms://",
+      "variant": "emphasis"
+    },
+    {
+      "id": "spi-kafka",
+      "from": "spi",
+      "to": "kafka_adapter",
+      "label": "kafka://",
+      "variant": "emphasis"
+    },
+    {
+      "id": "jms-artemis",
+      "from": "jms_adapter",
+      "to": "artemis",
+      "label": "TCP Core"
+    },
+    {
+      "id": "jms-ibmmq",
+      "from": "jms_adapter",
+      "to": "ibmmq",
+      "label": "WMQ Client"
+    },
+    {
+      "id": "kafka-cluster",
+      "from": "kafka_adapter",
+      "to": "kafka_cluster",
+      "label": "Kafka Protocol"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Lowest Common Denominator API",
+      "items": [
+        "Unifies push brokers (JMS) and pull-based log streams (Kafka)",
+        "At-least-once delivery with immutable Message and string headers",
+        "Topic (ephemeral fan-out) vs Queue (durable competing consumers)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Strict Owner-Loop Concurrency",
+      "items": [
+        "Handler futures never touch thread-confined broker clients",
+        "Kafka commits on poll thread; JMS commits on transacted receive loop",
+        "One in-flight message per consumer unit guarantees partition order"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Conformance & Portability Proof",
+      "items": [
+        "Abstract suite shared via java-test-fixtures across all adapters",
+        "Negative control meta-tests assert suite fails on broken transports",
+        "Proven against Apache Artemis, IBM MQ, and Apache Kafka"
+      ]
+    }
+  ]
+}

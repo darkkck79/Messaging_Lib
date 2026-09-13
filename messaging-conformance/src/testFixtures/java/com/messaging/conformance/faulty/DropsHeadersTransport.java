@@ -8,8 +8,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 /**
  * Faulty variant: strips headers before handing the message to the handler. Violates
- * §G (headers round-trip). Used only by {@code DropsHeadersConformance}, excluded from
- * normal test discovery, to prove {@code MetaConformanceTest} catches it.
+ * §G (headers round-trip). Used only by {@code DropsHeadersConformance} to prove the
+ * suite catches it.
  */
 public final class DropsHeadersTransport extends InMemoryTransport {
 
