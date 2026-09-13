@@ -19,7 +19,7 @@
 - **YAGNI / DRY / KISS** per `CLAUDE.md`. Minimal viable code, no over-engineering.
 - **TDD**: Write failing tests first, then minimal implementation.
 - **Skip-is-failure:** A `TestListener` fails the build on any `SKIPPED` test result.
-- **No commits until verification passes.** Run `/simplify` before each commit.
+- **No commits until verification passes.**
 - **Docs woven in:** Update relevant documentation with each task.
 
 ---
@@ -423,7 +423,7 @@ dependencies {
 Run: `.\gradlew.bat build`
 Expected: BUILD SUCCESSFUL (all modules compile, no tests yet)
 
-- [-] **Step 12: Run `/simplify` and commit**
+- [-] **Step 12: Commit**
 
 ```powershell
 git add -A
@@ -467,7 +467,7 @@ git commit -m "build: gradle multi-module skeleton with version catalog and wrap
 
 #### 2.1 Destination types
 
-- [ ] **Step 1: Write Destination tests**
+- [x] **Step 1: Write Destination tests**
 
 ```java
 package com.messaging;
@@ -522,12 +522,12 @@ class DestinationTest {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.DestinationTest" -i`
 Expected: FAIL — classes do not exist yet
 
-- [ ] **Step 3: Implement Destination, Topic, Queue**
+- [x] **Step 3: Implement Destination, Topic, Queue**
 
 `Destination.java`:
 ```java
@@ -571,14 +571,14 @@ public record Queue(String name) implements Destination {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.DestinationTest" -i`
 Expected: PASS — all 9 tests green
 
 #### 2.2 Message record
 
-- [ ] **Step 5: Write Message tests**
+- [x] **Step 5: Write Message tests**
 
 ```java
 package com.messaging;
@@ -667,12 +667,12 @@ class MessageTest {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it fails**
+- [x] **Step 6: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.MessageTest" -i`
 Expected: FAIL — `Message` does not exist yet
 
-- [ ] **Step 7: Implement Message**
+- [x] **Step 7: Implement Message**
 
 ```java
 package com.messaging;
@@ -721,14 +721,14 @@ public record Message(byte[] body, Map<String, String> headers) {
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.MessageTest" -i`
 Expected: PASS — all 12 tests green
 
 #### 2.3 Remaining value types (interfaces, enums)
 
-- [ ] **Step 9: Create all remaining value types**
+- [x] **Step 9: Create all remaining value types**
 
 These are interfaces/enums — tested through their implementations in later tasks.
 
@@ -809,7 +809,7 @@ public class MessagingException extends RuntimeException {
 
 #### 2.4 MessagingConfig
 
-- [ ] **Step 10: Write MessagingConfig tests**
+- [x] **Step 10: Write MessagingConfig tests**
 
 ```java
 package com.messaging.config;
@@ -929,12 +929,12 @@ class MessagingConfigTest {
 }
 ```
 
-- [ ] **Step 11: Run test to verify it fails**
+- [x] **Step 11: Run test to verify it fails**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.config.MessagingConfigTest" -i`
 Expected: FAIL — `MessagingConfig` does not exist yet
 
-- [ ] **Step 12: Implement MessagingConfig**
+- [x] **Step 12: Implement MessagingConfig**
 
 ```java
 package com.messaging.config;
@@ -1053,12 +1053,12 @@ public final class MessagingConfig {
 }
 ```
 
-- [ ] **Step 13: Run all core tests**
+- [x] **Step 13: Run all core tests**
 
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all Destination, Message, and MessagingConfig tests green
 
-- [ ] **Step 14: Run `/simplify` and commit**
+- [x] **Step 14: Commit**
 
 ```powershell
 git add -A
@@ -1088,7 +1088,7 @@ git commit -m "feat(core): public API value types and MessagingConfig with TDD"
 
 #### 3.1 HeaderValidator
 
-- [ ] **Step 1: Write HeaderValidator tests**
+- [x] **Step 1: Write HeaderValidator tests**
 
 ```java
 package com.messaging.internal;
@@ -1139,7 +1139,7 @@ class HeaderValidatorTest {
 }
 ```
 
-- [ ] **Step 2: Implement HeaderValidator**
+- [x] **Step 2: Implement HeaderValidator**
 
 ```java
 package com.messaging.internal;
@@ -1176,14 +1176,14 @@ public final class HeaderValidator {
 }
 ```
 
-- [ ] **Step 3: Run HeaderValidator tests**
+- [x] **Step 3: Run HeaderValidator tests**
 
 Run: `.\gradlew.bat :messaging-core:test --tests "com.messaging.internal.HeaderValidatorTest" -i`
 Expected: PASS
 
 #### 3.2 SPI, MessageBus, DefaultMessageBus, TypedChannel, Messaging factory
 
-- [ ] **Step 4: Create SPI interfaces**
+- [x] **Step 4: Create SPI interfaces**
 
 `spi/TransportProvider.java`:
 ```java
@@ -1214,7 +1214,7 @@ public interface Transport extends AutoCloseable {
 }
 ```
 
-- [ ] **Step 5: Create MessageBus interface**
+- [x] **Step 5: Create MessageBus interface**
 
 ```java
 package com.messaging;
@@ -1233,7 +1233,7 @@ public interface MessageBus extends AutoCloseable {
 }
 ```
 
-- [ ] **Step 6: Write DefaultMessageBus tests**
+- [x] **Step 6: Write DefaultMessageBus tests**
 
 ```java
 package com.messaging.internal;
@@ -1296,7 +1296,7 @@ class DefaultMessageBusTest {
 }
 ```
 
-- [ ] **Step 7: Implement DefaultMessageBus**
+- [x] **Step 7: Implement DefaultMessageBus**
 
 ```java
 package com.messaging.internal;
@@ -1345,7 +1345,7 @@ public final class DefaultMessageBus implements MessageBus {
 }
 ```
 
-- [ ] **Step 8: Write TypedChannel tests and implement**
+- [x] **Step 8: Write TypedChannel tests and implement**
 
 ```java
 // TypedChannel.java
@@ -1438,7 +1438,7 @@ class TypedChannelTest {
 }
 ```
 
-- [ ] **Step 9: Implement Messaging factory**
+- [x] **Step 9: Implement Messaging factory**
 
 ```java
 package com.messaging;
@@ -1506,7 +1506,7 @@ public final class Messaging {
 }
 ```
 
-- [ ] **Step 10: Write and run MessagingFactoryTest**
+- [x] **Step 10: Write and run MessagingFactoryTest**
 
 ```java
 package com.messaging;
@@ -1525,12 +1525,12 @@ class MessagingFactoryTest {
 }
 ```
 
-- [ ] **Step 11: Run all core tests**
+- [x] **Step 11: Run all core tests**
 
 Run: `.\gradlew.bat :messaging-core:test -i`
 Expected: PASS — all tests green
 
-- [ ] **Step 12: Run `/simplify` and commit**
+- [x] **Step 12: Commit**
 
 ```powershell
 git add -A
@@ -1623,7 +1623,7 @@ Uses JUnit Platform `LauncherFactory` to run specific test methods from each fau
 Run: `.\gradlew.bat :messaging-conformance:test -i`
 Expected: PASS — meta-test confirms all three faulty transports are caught
 
-- [ ] **Step 9: Run `/simplify` and commit**
+- [ ] **Step 9: Commit**
 
 ```powershell
 git add -A
@@ -1686,7 +1686,7 @@ Adds Artemis-specific test: `redeliveredHeaderSetOnRedelivery()` — verifies `m
 Run: `.\gradlew.bat :messaging-jms:integrationTest -i`
 Expected: PASS (Docker required)
 
-- [ ] **Step 7: Run `/simplify` and commit**
+- [ ] **Step 7: Commit**
 
 ```powershell
 git add -A
@@ -1720,7 +1720,7 @@ Config: `jms://app:passw0rd@host:1414` with passthrough `channel=DEV.APP.SVRCONN
 Run: `.\gradlew.bat :messaging-jms:integrationTest -i`
 Expected: PASS — both Artemis and IBM MQ pass. IBM MQ image is ~1.5GB, first pull may take several minutes.
 
-- [ ] **Step 3: Run `/simplify` and commit**
+- [ ] **Step 3: Commit**
 
 ```powershell
 git add -A
@@ -1782,7 +1782,7 @@ Adds Kafka-specific tests:
 Run: `.\gradlew.bat :messaging-kafka:integrationTest -i`
 Expected: PASS (Docker required)
 
-- [ ] **Step 7: Run `/simplify` and commit**
+- [ ] **Step 7: Commit**
 
 ```powershell
 git add -A
@@ -1872,7 +1872,7 @@ public final class JsonCodec<T> implements Codec<T> {
 Run: `.\gradlew.bat :messaging-codec-json:test -i`
 Expected: PASS
 
-- [ ] **Step 4: Run `/simplify` and commit**
+- [ ] **Step 4: Commit**
 
 ```powershell
 git add -A
@@ -1915,7 +1915,7 @@ Research Solace PubSub+ Java API and map each spec section. Key areas:
 - §G: Message properties similar to headers
 - §K: Native client reconnection
 
-- [ ] **Step 3: Run `/simplify` and commit**
+- [ ] **Step 3: Commit**
 
 ```powershell
 git add -A
@@ -1956,9 +1956,7 @@ All must pass. No SKIPPED results.
 
 Write a small example that publishes and subscribes unchanged against all three brokers by changing only `messaging.url`. This is the product claim — verify it directly.
 
-- [ ] **Step 5: Run `/simplify` across the entire project**
-
-- [ ] **Step 6: Final commit**
+- [ ] **Step 5: Final commit**
 
 ```powershell
 git add -A
