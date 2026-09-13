@@ -9,8 +9,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 /**
  * Faulty variant: settles (dequeues) BEFORE running the handler, so a failing handler's
  * message is never redelivered — the message was already "acked" the moment it was
- * pulled off the deque. Violates §A. Used only by {@code AcksBeforeHandlerConformance},
- * excluded from normal test discovery, to prove {@code MetaConformanceTest} catches it.
+ * pulled off the deque. Violates §A. Used only by {@code AcksBeforeHandlerConformance}
+ * to prove the suite catches it.
  */
 public final class AcksBeforeHandlerTransport extends InMemoryTransport {
 

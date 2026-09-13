@@ -24,17 +24,17 @@ class MetaConformanceTest {
 
     @Test
     void acksBeforeHandlerTransportFailsRedeliveryTest() {
-        assertMethodFails(AcksBeforeHandlerConformance.class, "redeliveryOnExceptionalFuture");
+        assertMethodFails(AcksBeforeHandlerConformance.class, AcksBeforeHandlerConformance.EXPECTED_FAILURE);
     }
 
     @Test
     void queueFansOutTransportFailsCompetingConsumersTest() {
-        assertMethodFails(QueueFansOutConformance.class, "queueCompetingConsumers");
+        assertMethodFails(QueueFansOutConformance.class, QueueFansOutConformance.EXPECTED_FAILURE);
     }
 
     @Test
     void dropsHeadersTransportFailsHeadersRoundTripTest() {
-        assertMethodFails(DropsHeadersConformance.class, "headersRoundTrip");
+        assertMethodFails(DropsHeadersConformance.class, DropsHeadersConformance.EXPECTED_FAILURE);
     }
 
     private void assertMethodFails(Class<?> testClass, String methodName) {

@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.concurrent.*;
 
 /**
- * A correct in-memory transport, used both directly (InMemoryConformanceTest) and as the
+ * A correct in-memory transport, used both directly (InMemoryConformance) and as the
  * base class for deliberately faulty variants that prove the conformance suite catches
  * real violations of the delivery contract (§A).
  *
@@ -24,7 +24,7 @@ public class InMemoryTransport implements Transport {
 
     private final Set<Destination> provisioned = ConcurrentHashMap.newKeySet();
     private final Map<Destination, LinkedBlockingDeque<Message>> queueBacking = new ConcurrentHashMap<>();
-    private final Map<Destination, List<LinkedBlockingDeque<Message>>> topicSubscriberQueues = new ConcurrentHashMap<>();
+    private final Map<Destination, List<LinkedBlockingDeque<Message>>> fanOutDeques = new ConcurrentHashMap<>();
     private final List<ConsumerUnit> consumerUnits = new CopyOnWriteArrayList<>();
     private volatile boolean closed;
 
@@ -35,19 +35,16 @@ public class InMemoryTransport implements Transport {
 
     @Override
     public CompletableFuture<Void> publish(Destination destination, Message message) {
-        if (closed) return CompletableFuture.failedFuture(new IllegalStateException("Transport is closed"));
-        if (!provisioned.contains(destination)) {
-            return CompletableFuture.failedFuture(
-                new MessagingException("No such destination (not provisioned): " + destination));
-        }
+        Exception unusable = unusable(destination);
+        if (unusable != null) return CompletableFuture.failedFuture(unusable);
         deliver(destination, message);
         return CompletableFuture.completedFuture(null);
     }
 
-    /** Fan out (Topic) or hand to the shared deque (Queue). Faulty variants override this. */
-    protected void deliver(Destination destination, Message message) {
-        if (destination instanceof Topic) {
-            for (var q : topicSubscriberQueues.getOrDefault(destination, List.of())) q.add(message);
+    /** Fan out to every subscriber's private deque, or hand to the shared competing-consumers deque. */
+    private void deliver(Destination destination, Message message) {
+        if (fansOut(destination)) {
+            for (var q : fanOutDeques.getOrDefault(destination, List.of())) q.add(message);
         } else {
             queueBacking.get(destination).add(message);
         }
@@ -55,18 +52,15 @@ public class InMemoryTransport implements Transport {
 
     @Override
     public CompletableFuture<Subscription> subscribe(Destination destination, MessageHandler handler) {
-        if (closed) return CompletableFuture.failedFuture(new IllegalStateException("Transport is closed"));
-        if (!provisioned.contains(destination)) {
-            return CompletableFuture.failedFuture(
-                new MessagingException("No such destination (not provisioned): " + destination));
-        }
+        Exception unusable = unusable(destination);
+        if (unusable != null) return CompletableFuture.failedFuture(unusable);
 
         LinkedBlockingDeque<Message> myDeque;
         Runnable onClose;
-        if (destination instanceof Topic) {
+        if (fansOut(destination)) {
             myDeque = new LinkedBlockingDeque<>();
-            topicSubscriberQueues.computeIfAbsent(destination, d -> new CopyOnWriteArrayList<>()).add(myDeque);
-            onClose = () -> topicSubscriberQueues.get(destination).remove(myDeque);
+            fanOutDeques.computeIfAbsent(destination, d -> new CopyOnWriteArrayList<>()).add(myDeque);
+            onClose = () -> fanOutDeques.get(destination).remove(myDeque);
         } else {
             myDeque = queueBacking.get(destination);
             onClose = () -> {};
@@ -83,6 +77,11 @@ public class InMemoryTransport implements Transport {
         });
     }
 
+    /** Whether every subscriber gets its own copy (Topic) rather than competing (Queue). Faulty variants override this. */
+    protected boolean fansOut(Destination destination) {
+        return destination instanceof Topic;
+    }
+
     /** Extension point for faulty variants. */
     protected ConsumerUnit createConsumerUnit(LinkedBlockingDeque<Message> deque, MessageHandler handler) {
         return new ConsumerUnit(deque, handler);
@@ -94,7 +93,16 @@ public class InMemoryTransport implements Transport {
         consumerUnits.forEach(ConsumerUnit::stop);
         consumerUnits.clear();
         queueBacking.clear();
-        topicSubscriberQueues.clear();
+        fanOutDeques.clear();
+    }
+
+    /** Why {@code destination} cannot be published to or subscribed to right now, or null if it can. */
+    private Exception unusable(Destination destination) {
+        if (closed) return new IllegalStateException("Transport is closed");
+        if (!provisioned.contains(destination)) {
+            return new MessagingException("No such destination (not provisioned): " + destination);
+        }
+        return null;
     }
 
     /** One thread, one message in flight, per §B/§C. Consumes → runs handler → settles or redelivers. */
