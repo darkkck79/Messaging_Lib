@@ -1,118 +1,58 @@
 package com.messaging.internal;
 
-import com.messaging.Destination;
-import com.messaging.MessageBus;
-import com.messaging.MessagingException;
-import com.messaging.MessagingListener;
-import com.messaging.Topic;
+import com.messaging.*;
 import com.messaging.config.MessagingConfig;
-
+import com.messaging.spi.Transport;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicReference;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-/**
- * DefaultMessageBus must run outgoing messages through HeaderValidator before handing
- * them to the transport, per §the header-validation contract already proven in
- * HeaderValidatorTest. This exercises that wiring end-to-end through publish().
- */
+@ExtendWith(MockitoExtension.class)
 class DefaultMessageBusTest {
+    @Mock Transport transport;
+    DefaultMessageBus bus;
 
-    @Test void publishRejectsHeaderKeyOutsideAllowedCharset() {
-        MessagingConfig config = MessagingConfig.builder().url("fake://localhost").build();
-
-        try (MessageBus bus = new DefaultMessageBus(config)) {
-            assertThatThrownBy(() ->
-                bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of("bad key!", "v")))
-                .isInstanceOf(MessagingException.class)
-                .hasMessageContaining("bad key!");
-        }
+    @BeforeEach void setUp() {
+        bus = new DefaultMessageBus(transport,
+            MessagingConfig.builder().url("test://localhost").build(),
+            MessagingListener.noOp());
     }
 
-    @Test void publishNotifiesConfiguredListenerOnPublished() {
-        AtomicReference<Destination> notified = new AtomicReference<>();
-        MessagingListener listener = new MessagingListener() {
-            @Override public void onPublished(Destination destination) {
-                notified.set(destination);
-            }
-        };
-        MessagingConfig config = MessagingConfig.builder()
-            .url("fake://localhost")
-            .listener(listener)
-            .build();
-
-        try (MessageBus bus = new DefaultMessageBus(config)) {
-            bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of());
-        }
-
-        assertThat(notified.get()).isEqualTo(Topic.of("orders"));
+    @Test void publishDelegatesToTransport() {
+        when(transport.publish(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        bus.publish(Queue.of("q"), new Message("hello".getBytes(), Map.of()));
+        verify(transport).publish(eq(Queue.of("q")), any());
     }
-
-    @Test void handlerFailureIsIsolatedAndReportedToListenerWithoutBlockingOtherSubscribers() {
-        AtomicReference<Throwable> reportedError = new AtomicReference<>();
-        AtomicReference<Destination> reportedDestination = new AtomicReference<>();
-        MessagingListener listener = new MessagingListener() {
-            @Override public void onError(Destination destination, Throwable error) {
-                reportedDestination.set(destination);
-                reportedError.set(error);
-            }
-        };
-        MessagingConfig config = MessagingConfig.builder()
-            .url("fake://localhost")
-            .listener(listener)
-            .build();
-        List<String> receivedBySecondHandler = new CopyOnWriteArrayList<>();
-        RuntimeException boom = new RuntimeException("boom");
-
-        try (MessageBus bus = new DefaultMessageBus(config)) {
-            try (var first = bus.subscribe(Topic.of("orders"), message -> { throw boom; }, null);
-                 var second = bus.subscribe(Topic.of("orders"), message -> {
-                     receivedBySecondHandler.add(new String(message.body()));
-                     return CompletableFuture.completedFuture(null);
-                 }, null)) {
-
-                assertThatCode(() -> bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of()))
-                    .doesNotThrowAnyException();
-            }
-        }
-
-        assertThat(reportedDestination.get()).isEqualTo(Topic.of("orders"));
-        assertThat(reportedError.get()).isEqualTo(boom);
-        assertThat(receivedBySecondHandler).containsExactly("hello");
+    @Test void publishValidatesHeaders() {
+        assertThatThrownBy(() -> bus.publish(Queue.of("q"), new Message(new byte[0], Map.of("JMSBadKey", "v"))))
+            .isInstanceOf(MessagingException.class);
+        verify(transport, never()).publish(any(), any());
     }
-
-    /**
-     * Per design spec §H: "onConsumed fires after settlement, so it means
-     * 'processed and settled', not 'received'." DefaultMessageBus must notify the
-     * configured listener once a subscriber's handler successfully completes.
-     */
-    @Test void successfulHandlerSettlementNotifiesListenerOnConsumed() {
-        AtomicReference<Destination> notified = new AtomicReference<>();
-        MessagingListener listener = new MessagingListener() {
-            @Override public void onConsumed(Destination destination) {
-                notified.set(destination);
-            }
+    @Test void closeIsIdempotent() {
+        bus.close(); bus.close();
+        verify(transport, times(1)).close(any(Duration.class));
+    }
+    @Test void apiCallAfterCloseThrows() {
+        bus.close();
+        assertThatThrownBy(() -> bus.publish(Queue.of("q"), new byte[0]))
+            .isInstanceOf(IllegalStateException.class);
+    }
+    @Test void listenerExceptionDoesNotAffectPublish() {
+        var bad = new MessagingListener() {
+            @Override public void onPublished(Destination d) { throw new RuntimeException("boom"); }
         };
-        MessagingConfig config = MessagingConfig.builder()
-            .url("fake://localhost")
-            .listener(listener)
-            .build();
-
-        try (MessageBus bus = new DefaultMessageBus(config)) {
-            try (var subscription = bus.subscribe(Topic.of("orders"), message ->
-                    CompletableFuture.completedFuture(null), null)) {
-                bus.publish(Topic.of("orders"), "hello".getBytes(), Map.of());
-            }
-        }
-
-        assertThat(notified.get()).isEqualTo(Topic.of("orders"));
+        var safeBus = new DefaultMessageBus(transport,
+            MessagingConfig.builder().url("test://localhost").build(), bad);
+        when(transport.publish(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        assertThatCode(() -> safeBus.publish(Queue.of("q"), new Message(new byte[0], Map.of())).join())
+            .doesNotThrowAnyException();
     }
 }

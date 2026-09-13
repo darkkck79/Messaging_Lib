@@ -11,4 +11,6 @@ public interface MessagingListener {
     default void onError(Destination destination, Throwable error) {}
 
     default void onConnectionStateChanged(ConnectionState state) {}
+
+    static MessagingListener noOp() { return new MessagingListener() {}; }
 }

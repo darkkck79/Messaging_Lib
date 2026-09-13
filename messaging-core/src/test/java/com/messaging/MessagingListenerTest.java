@@ -26,6 +26,7 @@ class MessagingListenerTest {
 
     @Test void declaresExactlyTheFourSpecCallbacks() {
         assertThat(MessagingListener.class.getDeclaredMethods())
+            .filteredOn(method -> !Modifier.isStatic(method.getModifiers()))
             .extracting(Method::getName)
             .containsExactlyInAnyOrder(
                 "onPublished", "onConsumed", "onError", "onConnectionStateChanged");
@@ -55,6 +56,7 @@ class MessagingListenerTest {
 
     @Test void everyCallbackIsADefaultMethod() {
         assertThat(MessagingListener.class.getDeclaredMethods())
+            .filteredOn(method -> !Modifier.isStatic(method.getModifiers()))
             .allSatisfy(method -> assertThat(method.isDefault())
                 .as("%s must be a default method", method.getName())
                 .isTrue());

@@ -1,24 +1,12 @@
 package com.messaging.spi;
 
-import com.messaging.MessageHandler;
-import com.messaging.Topic;
-import com.messaging.TypedHandler;
+import com.messaging.*;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
-import java.util.Map;
-
-public interface Transport {
-    void publish(String destinationName, byte[] body, Map<String, String> headers);
-
-    <T> SubscriptionImpl subscribe(String destinationName, MessageHandler handler, TypedHandler<T> typedHandler);
-
-    void close();
-
-    default boolean supports(String providerName) {
-        return false;
-    }
-
-    interface SubscriptionImpl extends AutoCloseable {
-        @Override
-        void close();
-    }
+public interface Transport extends AutoCloseable {
+    CompletableFuture<Void> publish(Destination destination, Message message);
+    CompletableFuture<Subscription> subscribe(Destination destination, MessageHandler handler);
+    void close(Duration timeout);
+    @Override default void close() { close(Duration.ofSeconds(30)); }
 }

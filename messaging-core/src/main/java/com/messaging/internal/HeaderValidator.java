@@ -35,7 +35,7 @@ public class HeaderValidator {
             }
 
             if (!VALID_KEY.matcher(key).matches()) {
-                throw new MessagingException("Invalid header key (must match [A-Za-z0-9_.-]+): " + key);
+                throw new MessagingException("Invalid header key charset (must match [A-Za-z0-9_.-]+): " + key);
             }
 
             if (key.startsWith("messaging.")) {
