@@ -4,8 +4,11 @@ plugins {
 
 dependencies {
     implementation testFixtures(project(':messaging-conformance'))
+    implementation testFixtures(project(':messaging-jms'))
     implementation libs.junit.platform.launcher
     runtimeOnly libs.logback.classic
+    runtimeOnly libs.artemis.jakarta.client
+    runtimeOnly libs.ibm.mq.jakarta.client
 }
 
 application {

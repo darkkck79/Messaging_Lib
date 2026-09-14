@@ -4,6 +4,8 @@ import com.messaging.conformance.InMemoryConformance;
 import com.messaging.conformance.faulty.AcksBeforeHandlerConformance;
 import com.messaging.conformance.faulty.DropsHeadersConformance;
 import com.messaging.conformance.faulty.QueueFansOutConformance;
+import com.messaging.jms.fixtures.ExternalArtemisConformance;
+import com.messaging.jms.fixtures.ExternalIbmMqConformance;
 import com.messaging.sample.SuiteRunner.ScenarioResult;
 
 import java.io.PrintStream;
@@ -13,13 +15,18 @@ import java.util.Map;
 
 /**
  * CLI that runs the conformance suite against each registered transport and prints a
- * PASS/FAIL line per scenario. A correct transport must pass everything; a deliberately
- * faulty one must fail its expected scenario. Exit code 0 only when both hold.
+ * PASS/FAIL line per scenario. In-memory targets need nothing; broker targets
+ * (`jms-artemis`, `jms-ibm-mq`) require `--url` and `--admin-url` and are never included
+ * in `--transport all`, so `all` stays Docker/broker-free.
  */
 public final class SampleApp {
 
-    /** A suite to run; {@code expectedFailure == null} means every scenario must pass. */
-    record Target(Class<?> suite, String expectedFailure) {}
+    /** A suite to run; {@code expectedFailure == null} means every scenario must pass.
+     * {@code broker} targets require {@code --url}/{@code --admin-url} and are excluded
+     * from {@code all}. */
+    record Target(Class<?> suite, String expectedFailure, boolean broker) {
+        Target(Class<?> suite, String expectedFailure) { this(suite, expectedFailure, false); }
+    }
 
     private static final Map<String, Target> TARGETS = new LinkedHashMap<>();
     static {
@@ -30,6 +37,8 @@ public final class SampleApp {
             new Target(QueueFansOutConformance.class, QueueFansOutConformance.EXPECTED_FAILURE));
         TARGETS.put("faulty-drops-headers",
             new Target(DropsHeadersConformance.class, DropsHeadersConformance.EXPECTED_FAILURE));
+        TARGETS.put("jms-artemis", new Target(ExternalArtemisConformance.class, null, true));
+        TARGETS.put("jms-ibm-mq", new Target(ExternalIbmMqConformance.class, null, true));
     }
 
     private SampleApp() {}
@@ -40,6 +49,8 @@ public final class SampleApp {
 
     static int run(String[] args, PrintStream out, PrintStream err) {
         String transport = "all";
+        String url = null;
+        String adminUrl = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--list" -> {
@@ -50,14 +61,34 @@ public final class SampleApp {
                     if (++i == args.length) return usage(err, "--transport needs a value");
                     transport = args[i];
                 }
+                case "--url" -> {
+                    if (++i == args.length) return usage(err, "--url needs a value");
+                    url = args[i];
+                }
+                case "--admin-url" -> {
+                    if (++i == args.length) return usage(err, "--admin-url needs a value");
+                    adminUrl = args[i];
+                }
                 default -> { return usage(err, "Unknown argument: " + args[i]); }
             }
         }
         boolean all = transport.equals("all");
         if (!all && !TARGETS.containsKey(transport)) return usage(err, "Unknown transport: " + transport);
 
+        if (!all && TARGETS.get(transport).broker() && (url == null || adminUrl == null)) {
+            return usage(err, "Broker target '" + transport + "' requires --url and --admin-url");
+        }
+        if (!all && TARGETS.get(transport).broker()) {
+            System.setProperty("messaging.sample.url", url);
+            System.setProperty("messaging.sample.admin-url", adminUrl);
+        }
+
+        List<Map.Entry<String, Target>> targets = all
+            ? TARGETS.entrySet().stream().filter(e -> !e.getValue().broker()).toList()
+            : List.of(Map.entry(transport, TARGETS.get(transport)));
+
         boolean ok = true;
-        for (var entry : (all ? TARGETS : Map.of(transport, TARGETS.get(transport))).entrySet()) {
+        for (var entry : targets) {
             out.println("== " + entry.getKey() + " ==");
             ok &= report(entry.getValue(), SuiteRunner.run(entry.getValue().suite()), out);
         }
@@ -89,7 +120,8 @@ public final class SampleApp {
 
     private static int usage(PrintStream err, String problem) {
         err.println(problem);
-        err.println("Usage: SampleApp [--transport <name|all>] [--list]");
+        err.println("Usage: SampleApp [--transport <name|all>] [--url <jms://user:pass@host:port>] "
+            + "[--admin-url <http(s)://user:pass@host:port>] [--list]");
         err.println("Transports: " + String.join(", ", TARGETS.keySet()));
         return 1;
     }

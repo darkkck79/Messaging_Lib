@@ -70,10 +70,32 @@ class SampleAppTest {
 
     @Test
     void unknownArgumentIsRejected() {
-        int exit = run("--url", "tcp://localhost:61616");
+        int exit = run("--bogus-flag");
 
         assertThat(exit).isEqualTo(1);
-        assertThat(err.toString()).contains("Unknown argument: --url");
+        assertThat(err.toString()).contains("Unknown argument: --bogus-flag");
+    }
+
+    @Test
+    void brokerTargetWithoutUrlExitsOne() {
+        int exit = run("--transport", "jms-artemis");
+
+        assertThat(exit).isEqualTo(1);
+        assertThat(err.toString()).contains("--url").contains("--admin-url");
+    }
+
+    @Test
+    void brokerTargetWithoutAdminUrlExitsOne() {
+        int exit = run("--transport", "jms-artemis", "--url", "jms://user:pass@localhost:61616");
+
+        assertThat(exit).isEqualTo(1);
+    }
+
+    @Test
+    void urlWithNonBrokerTargetIsAccepted() {
+        int exit = run("--transport", "in-memory", "--url", "jms://user:pass@localhost:61616");
+
+        assertThat(exit).isEqualTo(0);
     }
 
     @Test
