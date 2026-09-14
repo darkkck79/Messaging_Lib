@@ -4,17 +4,14 @@ import com.messaging.config.MessagingConfig;
 import com.messaging.internal.DefaultMessageBus;
 import com.messaging.spi.Transport;
 import com.messaging.spi.TransportProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public final class Messaging {
-    private static final Logger log = LoggerFactory.getLogger(Messaging.class);
     private Messaging() {}
 
     public static MessageBus connect(MessagingConfig config) {
         String scheme = config.scheme();
-        MessagingListener listener = wrapSafe(config.listener());
+        MessagingListener listener = com.messaging.internal.SafeListener.wrap(config.listener());
         TransportProvider provider = resolveProvider(scheme);
         Transport transport = provider.open(config, listener);
         return new DefaultMessageBus(transport, config, listener);
@@ -42,22 +39,5 @@ public final class Messaging {
             throw new MessagingException("Duplicate TransportProviders for scheme '" + scheme + "': "
                 + matches.stream().map(p -> p.getClass().getName()).toList());
         return matches.getFirst();
-    }
-
-    private static MessagingListener wrapSafe(MessagingListener raw) {
-        return new MessagingListener() {
-            @Override public void onPublished(Destination d) {
-                try { raw.onPublished(d); } catch (Exception e) { log.warn("Listener threw on onPublished", e); }
-            }
-            @Override public void onConsumed(Destination d) {
-                try { raw.onConsumed(d); } catch (Exception e) { log.warn("Listener threw on onConsumed", e); }
-            }
-            @Override public void onError(Destination d, Throwable err) {
-                try { raw.onError(d, err); } catch (Exception e) { log.warn("Listener threw on onError", e); }
-            }
-            @Override public void onConnectionStateChanged(ConnectionState s) {
-                try { raw.onConnectionStateChanged(s); } catch (Exception e) { log.warn("Listener threw", e); }
-            }
-        };
     }
 }

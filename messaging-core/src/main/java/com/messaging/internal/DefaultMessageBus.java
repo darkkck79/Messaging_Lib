@@ -15,15 +15,15 @@ public final class DefaultMessageBus implements MessageBus {
     private volatile boolean closed;
 
     public DefaultMessageBus(Transport transport, MessagingConfig config, MessagingListener listener) {
-        this.transport = transport; this.config = config; this.listener = listener;
+        this.transport = transport; this.config = config; this.listener = SafeListener.wrap(listener);
     }
 
     @Override public CompletableFuture<Void> publish(Destination dest, Message msg) {
         checkNotClosed();
         HeaderValidator.validateForPublish(msg.headers());
         return transport.publish(dest, msg).whenComplete((v, ex) -> {
-            if (ex != null) { try { listener.onError(dest, ex); } catch (Exception e) { log.warn("Listener threw on onError", e); } }
-            else { try { listener.onPublished(dest); } catch (Exception e) { log.warn("Listener threw on onPublished", e); } }
+            if (ex != null) listener.onError(dest, ex);
+            else listener.onPublished(dest);
         });
     }
 
