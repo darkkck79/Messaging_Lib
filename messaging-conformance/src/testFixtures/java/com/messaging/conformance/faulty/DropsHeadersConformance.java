@@ -1,5 +1,6 @@
 package com.messaging.conformance.faulty;
 
+import com.messaging.conformance.BusSettings;
 import com.messaging.conformance.InMemoryConformance;
 
 /**
@@ -13,5 +14,7 @@ public class DropsHeadersConformance extends InMemoryConformance {
     public static final String EXPECTED_FAILURE = "headersRoundTrip";
 
     @Override
-    protected InMemoryTransport createTransport() { return new DropsHeadersTransport(); }
+    protected InMemoryTransport createTransport(BusSettings settings) {
+        return new DropsHeadersTransport(settings.listener(), settings.closeTimeout(), settings.concurrency());
+    }
 }

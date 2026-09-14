@@ -1,5 +1,6 @@
 package com.messaging.conformance.faulty;
 
+import com.messaging.conformance.BusSettings;
 import com.messaging.conformance.InMemoryConformance;
 
 /**
@@ -13,5 +14,7 @@ public class AcksBeforeHandlerConformance extends InMemoryConformance {
     public static final String EXPECTED_FAILURE = "redeliveryOnExceptionalFuture";
 
     @Override
-    protected InMemoryTransport createTransport() { return new AcksBeforeHandlerTransport(); }
+    protected InMemoryTransport createTransport(BusSettings settings) {
+        return new AcksBeforeHandlerTransport(settings.listener(), settings.closeTimeout(), settings.concurrency());
+    }
 }

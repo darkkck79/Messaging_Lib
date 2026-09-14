@@ -5,27 +5,21 @@ import com.messaging.config.MessagingConfig;
 import com.messaging.conformance.faulty.InMemoryTransport;
 import com.messaging.internal.DefaultMessageBus;
 
-/**
- * Exercises the shared conformance suite against an in-memory transport. As-is this is
- * the "control" run proving the suite passes against a transport with no deliberate
- * faults; the faulty variants override {@link #createTransport()}. Run by
- * {@code InMemoryConformanceTest}, {@code MetaConformanceTest}, and the sample app.
- */
 public class InMemoryConformance extends AbstractMessagingConformanceTest {
 
     private InMemoryTransport transport;
 
     /** The transport under test; faulty variants return a deliberately broken one. */
-    protected InMemoryTransport createTransport() {
-        return new InMemoryTransport();
+    protected InMemoryTransport createTransport(BusSettings settings) {
+        return new InMemoryTransport(settings.listener(), settings.closeTimeout(), settings.concurrency());
     }
 
     @Override
-    protected final MessageBus createBus() {
-        transport = createTransport();
+    protected final MessageBus createBus(BusSettings settings) {
+        transport = createTransport(settings);
         return new DefaultMessageBus(transport,
             MessagingConfig.builder().url("test://localhost").build(),
-            MessagingListener.noOp());
+            settings.listener());
     }
 
     @Override

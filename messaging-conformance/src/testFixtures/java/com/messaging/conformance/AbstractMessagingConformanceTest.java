@@ -26,9 +26,12 @@ public abstract class AbstractMessagingConformanceTest {
 
     protected MessageBus bus;
 
+    private static final BusSettings DEFAULT_SETTINGS =
+        new BusSettings(MessagingListener.noOp(), Duration.ofSeconds(1), 1);
+
     @BeforeEach
     void setUp() {
-        bus = createBus();
+        bus = createBus(DEFAULT_SETTINGS);
     }
 
     @AfterEach
@@ -36,8 +39,8 @@ public abstract class AbstractMessagingConformanceTest {
         if (bus != null) bus.close();
     }
 
-    /** Create the MessageBus under test. */
-    protected abstract MessageBus createBus();
+    /** Create the MessageBus under test with the given settings. */
+    protected abstract MessageBus createBus(BusSettings settings);
 
     /** Provision a topic out-of-band and return its Destination. */
     protected abstract Destination provisionTopic(String name);

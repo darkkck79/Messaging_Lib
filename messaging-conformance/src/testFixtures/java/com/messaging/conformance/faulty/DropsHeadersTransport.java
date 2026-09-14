@@ -1,7 +1,9 @@
 package com.messaging.conformance.faulty;
 
+import com.messaging.Destination;
 import com.messaging.Message;
 import com.messaging.MessageHandler;
+import com.messaging.MessagingListener;
 
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -13,10 +15,14 @@ import java.util.concurrent.LinkedBlockingDeque;
  */
 public final class DropsHeadersTransport extends InMemoryTransport {
 
+    public DropsHeadersTransport(MessagingListener listener, java.time.Duration closeTimeout, int concurrency) {
+        super(listener, closeTimeout, concurrency);
+    }
+
     @Override
-    protected ConsumerUnit createConsumerUnit(LinkedBlockingDeque<Message> deque, MessageHandler handler) {
-        MessageHandler strippingHandler = message ->
-            handler.handle(new Message(message.body(), Map.of()));
-        return new ConsumerUnit(deque, strippingHandler);
+    protected ConsumerUnit createConsumerUnit(LinkedBlockingDeque<Message> deque, MessageHandler handler,
+                                               MessagingListener listener, Destination destination) {
+        MessageHandler strippingHandler = message -> handler.handle(new Message(message.body(), Map.of()));
+        return new ConsumerUnit(deque, strippingHandler, listener, destination);
     }
 }

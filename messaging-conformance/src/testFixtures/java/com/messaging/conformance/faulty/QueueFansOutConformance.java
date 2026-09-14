@@ -1,5 +1,6 @@
 package com.messaging.conformance.faulty;
 
+import com.messaging.conformance.BusSettings;
 import com.messaging.conformance.InMemoryConformance;
 
 /**
@@ -13,5 +14,7 @@ public class QueueFansOutConformance extends InMemoryConformance {
     public static final String EXPECTED_FAILURE = "queueCompetingConsumers";
 
     @Override
-    protected InMemoryTransport createTransport() { return new QueueFansOutTransport(); }
+    protected InMemoryTransport createTransport(BusSettings settings) {
+        return new QueueFansOutTransport(settings.listener(), settings.closeTimeout(), settings.concurrency());
+    }
 }
