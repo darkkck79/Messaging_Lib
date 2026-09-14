@@ -85,8 +85,9 @@ public final class MessagingConfig {
     @Override public String toString() {
         var sb = new StringBuilder("MessagingConfig{url=");
         if (url.getUserInfo() != null) {
-            sb.append(url.getScheme()).append("://***@").append(url.getHost())
-              .append(":").append(url.getPort()).append(url.getPath());
+            sb.append(url.getScheme()).append("://***@").append(url.getHost());
+            if (url.getPort() != -1) sb.append(":").append(url.getPort());
+            sb.append(url.getPath());
         } else { sb.append(url); }
         sb.append(", clientId=").append(clientId).append(", concurrency=").append(concurrency)
           .append(", passthrough={");

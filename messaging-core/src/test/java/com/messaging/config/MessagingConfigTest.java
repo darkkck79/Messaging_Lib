@@ -116,6 +116,11 @@ class MessagingConfigTest {
         assertThat(str).contains("***");
     }
 
+    @Test void toStringOmitsPortWhenAbsent() {
+        var config = MessagingConfig.builder().url("test://user:secret@localhost").build();
+        assertThat(config.toString()).doesNotContain(":-1");
+    }
+
     @Test void invalidDurationRejects() {
         var props = new Properties();
         props.setProperty("messaging.url", "kafka://localhost:9092");
