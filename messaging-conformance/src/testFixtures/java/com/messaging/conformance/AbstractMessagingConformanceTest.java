@@ -275,17 +275,32 @@ public abstract class AbstractMessagingConformanceTest {
     // ==================== Failure surfaces ====================
 
     @Test
-    void publishToMissingDestinationFails() {
-        Topic topic = Topic.of("missing-dest-" + System.nanoTime());
+    void publishToMissingTopicFails() {
+        Topic topic = Topic.of("missing-topic-" + System.nanoTime());
         assertThatThrownBy(() -> bus.publish(topic, new byte[0]).join())
             .hasCauseInstanceOf(MessagingException.class);
     }
 
     @Test
-    void subscribeToMissingDestinationFails() {
-        Topic topic = Topic.of("missing-dest-sub-" + System.nanoTime());
+    void publishToMissingQueueFails() {
+        Queue queue = Queue.of("missing-queue-" + System.nanoTime());
+        assertThatThrownBy(() -> bus.publish(queue, new byte[0]).join())
+            .hasCauseInstanceOf(MessagingException.class);
+    }
+
+    @Test
+    void subscribeToMissingTopicFails() {
+        Topic topic = Topic.of("missing-topic-sub-" + System.nanoTime());
         assertThatThrownBy(() ->
             bus.subscribe(topic, message -> CompletableFuture.completedFuture(null)).join())
+            .hasCauseInstanceOf(MessagingException.class);
+    }
+
+    @Test
+    void subscribeToMissingQueueFails() {
+        Queue queue = Queue.of("missing-queue-sub-" + System.nanoTime());
+        assertThatThrownBy(() ->
+            bus.subscribe(queue, message -> CompletableFuture.completedFuture(null)).join())
             .hasCauseInstanceOf(MessagingException.class);
     }
 
