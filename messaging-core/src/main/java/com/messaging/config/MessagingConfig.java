@@ -23,7 +23,6 @@ public final class MessagingConfig {
     private final Duration closeTimeout;
     private final MessagingListener listener;
     private final Map<String, String> passthroughProperties;
-    private final Map<String, String> transportProperties;
 
     private MessagingConfig(Builder b) {
         if (b.url == null) throw new MessagingException("messaging.url is required");
@@ -37,7 +36,6 @@ public final class MessagingConfig {
         this.closeTimeout = b.closeTimeout;
         this.listener = b.listener != null ? b.listener : new MessagingListener() {};
         this.passthroughProperties = Collections.unmodifiableMap(new LinkedHashMap<>(b.passthrough));
-        this.transportProperties = Collections.unmodifiableMap(new LinkedHashMap<>(b.transport));
     }
 
     public URI url()                           { return url; }
@@ -48,7 +46,6 @@ public final class MessagingConfig {
     public Duration closeTimeout()             { return closeTimeout; }
     public MessagingListener listener()        { return listener; }
     public Map<String, String> passthroughProperties() { return passthroughProperties; }
-    public Map<String, String> transportProperties() { return transportProperties; }
 
     public static Builder builder() { return new Builder(); }
 
@@ -106,7 +103,6 @@ public final class MessagingConfig {
         private Duration closeTimeout = Duration.ofSeconds(30);
         private MessagingListener listener;
         private final Map<String, String> passthrough = new LinkedHashMap<>();
-        private final Map<String, String> transport = new LinkedHashMap<>();
         private Builder() {}
         public Builder url(String url)                      { this.url = url; return this; }
         public Builder clientId(String clientId)            { this.clientId = clientId; return this; }
@@ -115,7 +111,6 @@ public final class MessagingConfig {
         public Builder closeTimeout(Duration t)             { this.closeTimeout = t; return this; }
         public Builder listener(MessagingListener l)        { this.listener = l; return this; }
         public Builder property(String key, String value)   { this.passthrough.put(key, value); return this; }
-        public Builder transportProperty(String key, String value) { this.transport.put(key, value); return this; }
         public MessagingConfig build() { return new MessagingConfig(this); }
     }
 }
