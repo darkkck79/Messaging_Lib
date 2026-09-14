@@ -411,6 +411,41 @@ public abstract class AbstractMessagingConformanceTest {
         assertThat(received).containsExactly("msg-0", "msg-1", "msg-2", "msg-3", "msg-4");
     }
 
+    // ==================== Concurrency (§C) ====================
+
+    @Test
+    void topicConcurrencyDeliversOncePerSubscription() {
+        try (MessageBus extraBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofSeconds(1), 2))) {
+            Destination topic = provisionTopic("topic-concurrency");
+            var received = new CopyOnWriteArrayList<String>();
+            extraBus.subscribe(topic, recordingHandler(received)).join();
+
+            for (int i = 0; i < 4; i++) extraBus.publish(topic, ("m" + i).getBytes()).join();
+
+            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).hasSize(4));
+            assertThat(received).containsExactlyInAnyOrder("m0", "m1", "m2", "m3");
+        }
+    }
+
+    @Test
+    void queueConcurrencyRunsUnitsInParallel() throws Exception {
+        try (MessageBus extraBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofSeconds(2), 2))) {
+            Destination queue = provisionQueue("queue-concurrency-parallel");
+            var bothStarted = new java.util.concurrent.CountDownLatch(2);
+            var releaseHandlers = new CompletableFuture<Void>();
+            extraBus.subscribe(queue, message -> {
+                bothStarted.countDown();
+                return releaseHandlers;
+            }).join();
+
+            extraBus.publish(queue, "m1".getBytes()).join();
+            extraBus.publish(queue, "m2".getBytes()).join();
+
+            assertThat(bothStarted.await(TIMEOUT.toSeconds(), java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            releaseHandlers.complete(null);
+        }
+    }
+
     // ==================== Helpers ====================
 
     protected void publish(Destination destination, byte[] body) {
