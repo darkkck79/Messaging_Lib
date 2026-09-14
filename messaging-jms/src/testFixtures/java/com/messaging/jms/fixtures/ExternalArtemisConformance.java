@@ -1,36 +1,19 @@
 package com.messaging.jms.fixtures;
 
-import com.messaging.*;
-import com.messaging.conformance.AbstractMessagingConformanceTest;
 import com.messaging.conformance.BusSettings;
+import com.messaging.config.MessagingConfig;
 
-import java.net.URI;
+/** Runs {@link com.messaging.conformance.AbstractMessagingConformanceTest} against an
+ * external Artemis broker — used by the sample app's {@code jms-artemis} target. */
+public final class ExternalArtemisConformance extends ExternalJmsConformance {
 
-/** Runs {@link AbstractMessagingConformanceTest} against an external Artemis broker named
- * by system properties — used by the sample app's {@code jms-artemis} target. */
-public class ExternalArtemisConformance extends AbstractMessagingConformanceTest implements JmsRedeliveredScenario {
-
-    private BrokerAdmin admin;
-    private MessageBus lastBus;
+    @Override protected BrokerAdmin admin(String adminUrl) { return ArtemisBroker.admin(adminUrl); }
 
     @Override
-    protected MessageBus createBus(BusSettings settings) {
-        String url = System.getProperty("messaging.sample.url");
-        String adminUrl = System.getProperty("messaging.sample.admin-url");
-        if (admin == null) admin = ArtemisBroker.admin(adminUrl);
-
-        URI uri = URI.create(url);
-        String[] userInfo = uri.getUserInfo() != null
-            ? uri.getUserInfo().split(":", 2) : new String[]{"artemis", "artemis"};
-        var config = ArtemisBroker.config(uri.getHost(), uri.getPort(),
-            userInfo[0], userInfo.length > 1 ? userInfo[1] : "", settings);
-        lastBus = Messaging.connect(config);
-        return lastBus;
+    protected MessagingConfig config(String host, int port, String user, String password, BusSettings settings) {
+        return ArtemisBroker.config(host, port, user, password, settings);
     }
 
-    @Override protected Destination provisionTopic(String name) { return admin.createTopic(name); }
-    @Override protected Destination provisionQueue(String name) { return admin.createQueue(name); }
-
-    @Override public MessageBus jmsBus() { return lastBus; }
-    @Override public Destination jmsQueue(String name) { return provisionQueue(name); }
+    @Override protected String defaultUser() { return "artemis"; }
+    @Override protected String defaultPassword() { return "artemis"; }
 }

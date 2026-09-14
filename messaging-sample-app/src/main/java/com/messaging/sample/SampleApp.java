@@ -75,10 +75,10 @@ public final class SampleApp {
         boolean all = transport.equals("all");
         if (!all && !TARGETS.containsKey(transport)) return usage(err, "Unknown transport: " + transport);
 
-        if (!all && TARGETS.get(transport).broker() && (url == null || adminUrl == null)) {
-            return usage(err, "Broker target '" + transport + "' requires --url and --admin-url");
-        }
         if (!all && TARGETS.get(transport).broker()) {
+            if (url == null || adminUrl == null) {
+                return usage(err, "Broker target '" + transport + "' requires --url and --admin-url");
+            }
             System.setProperty("messaging.sample.url", url);
             System.setProperty("messaging.sample.admin-url", adminUrl);
         }

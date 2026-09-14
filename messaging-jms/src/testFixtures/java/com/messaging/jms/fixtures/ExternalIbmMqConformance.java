@@ -1,34 +1,19 @@
 package com.messaging.jms.fixtures;
 
-import com.messaging.*;
-import com.messaging.conformance.AbstractMessagingConformanceTest;
 import com.messaging.conformance.BusSettings;
+import com.messaging.config.MessagingConfig;
 
-import java.net.URI;
+/** Runs {@link com.messaging.conformance.AbstractMessagingConformanceTest} against an
+ * external IBM MQ broker — used by the sample app's {@code jms-ibm-mq} target. */
+public final class ExternalIbmMqConformance extends ExternalJmsConformance {
 
-public class ExternalIbmMqConformance extends AbstractMessagingConformanceTest implements JmsRedeliveredScenario {
-
-    private BrokerAdmin admin;
-    private MessageBus lastBus;
+    @Override protected BrokerAdmin admin(String adminUrl) { return IbmMqBroker.admin(adminUrl); }
 
     @Override
-    protected MessageBus createBus(BusSettings settings) {
-        String url = System.getProperty("messaging.sample.url");
-        String adminUrl = System.getProperty("messaging.sample.admin-url");
-        if (admin == null) admin = IbmMqBroker.admin(adminUrl);
-
-        URI uri = URI.create(url);
-        String[] userInfo = uri.getUserInfo() != null
-            ? uri.getUserInfo().split(":", 2) : new String[]{"app", "passw0rd"};
-        var config = IbmMqBroker.config(uri.getHost(), uri.getPort(),
-            userInfo[0], userInfo.length > 1 ? userInfo[1] : "", settings);
-        lastBus = Messaging.connect(config);
-        return lastBus;
+    protected MessagingConfig config(String host, int port, String user, String password, BusSettings settings) {
+        return IbmMqBroker.config(host, port, user, password, settings);
     }
 
-    @Override protected Destination provisionTopic(String name) { return admin.createTopic(name); }
-    @Override protected Destination provisionQueue(String name) { return admin.createQueue(name); }
-
-    @Override public MessageBus jmsBus() { return lastBus; }
-    @Override public Destination jmsQueue(String name) { return provisionQueue(name); }
+    @Override protected String defaultUser() { return "app"; }
+    @Override protected String defaultPassword() { return "passw0rd"; }
 }

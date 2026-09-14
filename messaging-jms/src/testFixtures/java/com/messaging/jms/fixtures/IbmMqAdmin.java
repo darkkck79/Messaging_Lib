@@ -11,7 +11,6 @@ import javax.net.ssl.X509TrustManager;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
@@ -75,24 +74,14 @@ public final class IbmMqAdmin implements BrokerAdmin {
     }
 
     private void runMqsc(String command) {
-        try {
-            String body = "{\"type\":\"runCommand\",\"parameters\":{\"command\":\"" + escape(command) + "\"}}";
-            HttpRequest request = HttpRequest.newBuilder(restBase.resolve("/api/v2/admin/action/qmgr/QM1/mqsc"))
-                .header("Content-Type", "application/json")
-                .header("ibm-mq-rest-csrf-token", "value")
-                .header("Authorization", authHeader)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                throw new MessagingException("IBM MQ mqsc call failed: HTTP "
-                    + response.statusCode() + " " + response.body());
-            }
-        } catch (MessagingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new MessagingException("IBM MQ mqsc call failed for command: " + command, e);
-        }
+        String body = "{\"type\":\"runCommand\",\"parameters\":{\"command\":\"" + escape(command) + "\"}}";
+        HttpRequest request = HttpRequest.newBuilder(restBase.resolve("/api/v2/admin/action/qmgr/QM1/mqsc"))
+            .header("Content-Type", "application/json")
+            .header("ibm-mq-rest-csrf-token", "value")
+            .header("Authorization", authHeader)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+        AdminHttp.send(client, request, status -> status / 100 == 2, "IBM MQ mqsc call for command: " + command);
     }
 
     private static String escape(String s) { return s.replace("\"", "\\\""); }

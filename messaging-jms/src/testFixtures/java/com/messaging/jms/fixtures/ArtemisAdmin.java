@@ -8,7 +8,6 @@ import com.messaging.Topic;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.regex.Matcher;
@@ -73,21 +72,10 @@ public final class ArtemisAdmin implements BrokerAdmin {
     }
 
     private String get(String path) {
-        try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(jolokiaBase.resolve(jolokiaBase.getPath() + path))
-                .header("Origin", jolokiaBase.getScheme() + "://" + jolokiaBase.getHost() + ":" + jolokiaBase.getPort())
-                .GET();
-            if (authHeader != null) builder.header("Authorization", authHeader);
-            HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new MessagingException("Jolokia call to " + path + " failed: HTTP "
-                    + response.statusCode() + " " + response.body());
-            }
-            return response.body();
-        } catch (MessagingException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new MessagingException("Jolokia call to " + path + " failed", e);
-        }
+        HttpRequest.Builder builder = HttpRequest.newBuilder(jolokiaBase.resolve(jolokiaBase.getPath() + path))
+            .header("Origin", jolokiaBase.getScheme() + "://" + jolokiaBase.getHost() + ":" + jolokiaBase.getPort())
+            .GET();
+        if (authHeader != null) builder.header("Authorization", authHeader);
+        return AdminHttp.send(client, builder.build(), status -> status == 200, "Jolokia call to " + path);
     }
 }

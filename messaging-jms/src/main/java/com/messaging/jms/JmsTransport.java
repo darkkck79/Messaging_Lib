@@ -42,16 +42,18 @@ public final class JmsTransport implements Transport {
     private final List<JmsConsumerUnit> consumerUnits = new CopyOnWriteArrayList<>();
     private final int concurrency;
     private final String clientId;
+    private final Duration closeTimeout;
     private volatile boolean closed;
 
     private JmsTransport(Connection connection, Session publishSession, MessageProducer publishProducer,
-                          MessagingListener listener, int concurrency, String clientId) {
+                          MessagingListener listener, int concurrency, String clientId, Duration closeTimeout) {
         this.connection = connection;
         this.publishSession = publishSession;
         this.publishProducer = publishProducer;
         this.listener = listener;
         this.concurrency = concurrency;
         this.clientId = clientId;
+        this.closeTimeout = closeTimeout;
     }
 
     static JmsTransport connect(MessagingConfig config, MessagingListener listener) {
@@ -99,7 +101,7 @@ public final class JmsTransport implements Transport {
             connection.start();
             listener.onConnectionStateChanged(ConnectionState.CONNECTED);
             return new JmsTransport(connection, publishSession, publishProducer, listener,
-                config.concurrency(), config.clientId());
+                config.concurrency(), config.clientId(), config.closeTimeout());
         } catch (Exception e) {
             closeQuietly(connection);
             throw new MessagingException("Failed to initialise JMS connection", e);
@@ -162,12 +164,12 @@ public final class JmsTransport implements Transport {
 
         return CompletableFuture.allOf(ready.toArray(CompletableFuture[]::new)).handle((v, ex) -> {
             if (ex != null) {
-                units.forEach(u -> u.stop(Duration.ofSeconds(5)));
+                units.forEach(u -> u.stop(closeTimeout));
                 units.forEach(consumerUnits::remove);
                 throw new MessagingException("Failed to subscribe to " + destination, ex);
             }
             Subscription subscription = () -> {
-                units.forEach(u -> u.stop(Duration.ofSeconds(30)));
+                units.forEach(u -> u.stop(closeTimeout));
                 units.forEach(consumerUnits::remove);
             };
             return subscription;
