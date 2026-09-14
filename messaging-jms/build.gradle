@@ -23,6 +23,7 @@ dependencies {
     testFixturesApi project(':messaging-core')
     testFixturesApi testFixtures(project(':messaging-conformance'))
     testFixturesRuntimeOnly libs.artemis.jakarta.client
+    testFixturesRuntimeOnly libs.ibm.mq.jakarta.client
 
     integrationTestImplementation testFixtures(project(':messaging-conformance'))
     integrationTestImplementation platform(libs.testcontainers.bom)
