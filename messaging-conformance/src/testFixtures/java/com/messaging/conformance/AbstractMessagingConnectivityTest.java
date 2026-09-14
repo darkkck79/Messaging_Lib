@@ -1,12 +1,13 @@
 package com.messaging.conformance;
 
-import com.messaging.Destination;
+import com.messaging.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
@@ -19,6 +20,7 @@ import java.time.Duration;
 public abstract class AbstractMessagingConnectivityTest extends AbstractMessagingConformanceTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration OUTAGE_PUBLISH_BOUND = Duration.ofSeconds(60);
 
     /** Restart the broker process, simulating an outage the adapter must recover from. */
     protected abstract void restartBroker();
@@ -28,6 +30,10 @@ public abstract class AbstractMessagingConnectivityTest extends AbstractMessagin
 
     /** Restore network connectivity cut by {@link #cutNetwork()}. */
     protected abstract void restoreNetwork();
+
+    /** Publish over a link that bypasses whatever {@link #cutNetwork()} cuts, so a test can
+     * put a message on a broker-backed destination while the adapter under test is offline. */
+    protected abstract void publishOutOfBand(Destination destination, byte[] body);
 
     @Test
     void queueSurvivesBrokerRestart() {
@@ -47,20 +53,49 @@ public abstract class AbstractMessagingConnectivityTest extends AbstractMessagin
     @Test
     void queueMessagesPublishedDuringOutageDeliveredAfterRecovery() {
         Destination queue = provisionQueue("outage-delivery");
-
-        // Published to the broker-backed queue with no consumer connected yet.
-        publish(queue, "during-outage".getBytes());
-
-        cutNetwork();
-        restoreNetwork();
-
         var received = new CopyOnWriteArrayList<String>();
         awaitSubscribed(queue, message -> {
             received.add(new String(message.body()));
             return CompletableFuture.completedFuture(null);
         });
 
+        cutNetwork();
+        publishOutOfBand(queue, "during-outage".getBytes());
+        restoreNetwork();
+
         await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).contains("during-outage"));
+    }
+
+    @Test
+    void publishDuringOutageFails() {
+        Destination queue = provisionQueue("outage-publish-fails");
+        cutNetwork();
+        try {
+            long startNanos = System.nanoTime();
+            assertThatThrownBy(() -> bus.publish(queue, "during-outage".getBytes()).join())
+                .hasCauseInstanceOf(com.messaging.MessagingException.class);
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+            assertThat(elapsedMs).isLessThan(OUTAGE_PUBLISH_BOUND.toMillis());
+        } finally {
+            restoreNetwork();
+        }
+    }
+
+    @Test
+    void busCloseRedeliversInFlightOnNextStart() throws Exception {
+        Destination queue = provisionQueue("bus-close-redelivers");
+        var neverCompletes = new CompletableFuture<Void>();
+        bus.subscribe(queue, message -> neverCompletes).join();
+        publish(queue, "stuck".getBytes());
+        Thread.sleep(300);
+
+        bus.close();
+
+        try (MessageBus freshBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofSeconds(1), 1))) {
+            var received = new CopyOnWriteArrayList<String>();
+            freshBus.subscribe(queue, recordingHandler(received)).join();
+            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).contains("stuck"));
+        }
     }
 
     @Test
