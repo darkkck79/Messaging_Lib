@@ -64,6 +64,29 @@ class MessagingConfigTest {
             .isInstanceOf(MessagingException.class).hasMessageContaining("messaging.url");
     }
 
+    @Test void fromPropertiesResolvesUrlBeforeSchemeKeysRegardlessOfOrder() {
+        // java.util.Properties iterates by hash order; this subclass forces the
+        // scheme-prefixed key to be seen before messaging.url to reproduce the bug.
+        var props = new Properties() {
+            @Override public synchronized java.util.Set<String> stringPropertyNames() {
+                var ordered = new java.util.LinkedHashSet<String>();
+                ordered.add("messaging.jms.connection-factory");
+                ordered.add("messaging.url");
+                return ordered;
+            }
+            @Override public String getProperty(String key) {
+                return switch (key) {
+                    case "messaging.jms.connection-factory" -> "com.example.Factory";
+                    case "messaging.url" -> "jms://localhost:61616";
+                    default -> null;
+                };
+            }
+        };
+        var config = MessagingConfig.fromProperties(props);
+        assertThat(config.scheme()).isEqualTo("jms");
+        assertThat(config.passthroughProperties()).containsEntry("connection-factory", "com.example.Factory");
+    }
+
     @Test void unknownCoreKeyFailsFast() {
         var props = new Properties();
         props.setProperty("messaging.url", "kafka://localhost:9092");

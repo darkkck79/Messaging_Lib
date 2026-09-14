@@ -54,11 +54,13 @@ public final class MessagingConfig {
 
     public static MessagingConfig fromProperties(Properties props) {
         var b = builder();
-        String scheme = null;
+        String urlValue = props.getProperty("messaging.url");
+        if (urlValue != null) b.url(urlValue);
+        String scheme = urlValue != null ? URI.create(urlValue).getScheme() : null;
         for (String key : props.stringPropertyNames()) {
+            if (key.equals("messaging.url")) continue;
             String value = props.getProperty(key);
             switch (key) {
-                case "messaging.url"                  -> { b.url(value); scheme = URI.create(value).getScheme(); }
                 case "messaging.client-id"            -> b.clientId(value);
                 case "messaging.consumer.concurrency" -> b.concurrency(Integer.parseInt(value));
                 case "messaging.connect-timeout"      -> b.connectTimeout(parseDuration(key, value));
