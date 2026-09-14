@@ -4,6 +4,7 @@ import com.messaging.*;
 import com.messaging.config.MessagingConfig;
 import com.messaging.conformance.faulty.InMemoryTransport;
 import com.messaging.internal.DefaultMessageBus;
+import com.messaging.internal.SafeListener;
 
 public class InMemoryConformance extends AbstractMessagingConformanceTest {
 
@@ -11,7 +12,7 @@ public class InMemoryConformance extends AbstractMessagingConformanceTest {
 
     /** The transport under test; faulty variants return a deliberately broken one. */
     protected InMemoryTransport createTransport(BusSettings settings) {
-        return new InMemoryTransport(settings.listener(), settings.closeTimeout(), settings.concurrency());
+        return new InMemoryTransport(SafeListener.wrap(settings.listener()), settings.closeTimeout(), settings.concurrency());
     }
 
     @Override

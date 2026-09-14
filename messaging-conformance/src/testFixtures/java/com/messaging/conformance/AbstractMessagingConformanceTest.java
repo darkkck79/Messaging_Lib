@@ -291,12 +291,23 @@ public abstract class AbstractMessagingConformanceTest {
 
     @Test
     void listenerThrowDoesNotChangeDelivery() {
-        Destination topic = provisionTopic("listener-throw");
-        var received = new CopyOnWriteArrayList<String>();
-        awaitSubscribed(topic, recordingHandler(received));
+        MessagingListener throwing = new MessagingListener() {
+            @Override public void onPublished(Destination d) { throw new RuntimeException("boom"); }
+            @Override public void onConsumed(Destination d) { throw new RuntimeException("boom"); }
+            @Override public void onError(Destination d, Throwable err) { throw new RuntimeException("boom"); }
+            @Override public void onConnectionStateChanged(ConnectionState s) { throw new RuntimeException("boom"); }
+        };
+        try (MessageBus throwingBus = createBus(new BusSettings(throwing, Duration.ofSeconds(1), 1))) {
+            Destination queue = provisionQueue("listener-throw");
+            var received = new CopyOnWriteArrayList<String>();
+            throwingBus.subscribe(queue, recordingHandler(received)).join();
 
-        assertThatCode(() -> publish(topic, "payload".getBytes())).doesNotThrowAnyException();
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(received).containsExactly("payload"));
+            assertThatCode(() -> throwingBus.publish(queue, "m1".getBytes()).join()).doesNotThrowAnyException();
+            assertThatCode(() -> throwingBus.publish(queue, "m2".getBytes()).join()).doesNotThrowAnyException();
+
+            await().atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(received).containsExactlyInAnyOrder("m1", "m2"));
+        }
     }
 
     // ==================== Ordering ====================
