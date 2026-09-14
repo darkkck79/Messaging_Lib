@@ -19,7 +19,7 @@ public class InMemoryConformance extends AbstractMessagingConformanceTest {
     protected final MessageBus createBus(BusSettings settings) {
         transport = createTransport(settings);
         return new DefaultMessageBus(transport,
-            MessagingConfig.builder().url("test://localhost").build(),
+            MessagingConfig.builder().url("test://localhost").closeTimeout(settings.closeTimeout()).build(),
             settings.listener());
     }
 

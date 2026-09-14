@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -270,6 +271,77 @@ public abstract class AbstractMessagingConformanceTest {
         bus.close();
         assertThatThrownBy(() -> bus.publish(Topic.of("closed"), new byte[0]))
             .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void subscriptionCloseWaitsForInFlightHandler() throws Exception {
+        try (MessageBus extraBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofSeconds(2), 1))) {
+            Destination queue = provisionQueue("close-waits-in-flight");
+            var received = new CopyOnWriteArrayList<String>();
+            var handlerStarted = new CompletableFuture<Void>();
+            Subscription subscription = extraBus.subscribe(queue, message -> {
+                handlerStarted.complete(null);
+                return CompletableFuture.runAsync(() -> {
+                    try { Thread.sleep(300); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+                    received.add(new String(message.body()));
+                });
+            }).join();
+
+            extraBus.publish(queue, "in-flight".getBytes()).join();
+            handlerStarted.get(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+
+            long startNanos = System.nanoTime();
+            subscription.close();
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+            assertThat(elapsedMs).isGreaterThanOrEqualTo(250);
+            assertThat(received).containsExactly("in-flight");
+
+            var redelivered = new CopyOnWriteArrayList<String>();
+            extraBus.subscribe(queue, recordingHandler(redelivered)).join();
+            Thread.sleep(300);
+            assertThat(redelivered).isEmpty();
+        }
+    }
+
+    @Test
+    void subscriptionCloseCancelsStuckHandlerUnsettled() throws Exception {
+        try (MessageBus extraBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofMillis(500), 1))) {
+            Destination queue = provisionQueue("close-cancels-stuck");
+            var neverCompletes = new CompletableFuture<Void>();
+            Subscription subscription = extraBus.subscribe(queue, message -> neverCompletes).join();
+
+            extraBus.publish(queue, "stuck".getBytes()).join();
+            Thread.sleep(100);
+
+            long startNanos = System.nanoTime();
+            subscription.close();
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+            assertThat(elapsedMs).isLessThan(2500);
+            assertThat(neverCompletes).isCancelled();
+
+            var redelivered = new CopyOnWriteArrayList<String>();
+            extraBus.subscribe(queue, recordingHandler(redelivered)).join();
+            await().atMost(TIMEOUT).untilAsserted(() -> assertThat(redelivered).containsExactly("stuck"));
+        }
+    }
+
+    @Test
+    void busCloseCancelsStuckHandler() throws Exception {
+        MessageBus extraBus = createBus(new BusSettings(MessagingListener.noOp(), Duration.ofMillis(500), 1));
+        Destination queue = provisionQueue("bus-close-cancels-stuck");
+        var neverCompletes = new CompletableFuture<Void>();
+        extraBus.subscribe(queue, message -> neverCompletes).join();
+        extraBus.publish(queue, "stuck".getBytes()).join();
+        Thread.sleep(100);
+
+        long startNanos = System.nanoTime();
+        extraBus.close();
+        long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        assertThat(elapsedMs).isBetween(400L, 2500L);
+        assertThat(neverCompletes).isCancelled();
     }
 
     // ==================== Failure surfaces ====================
