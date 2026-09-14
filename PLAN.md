@@ -40,7 +40,7 @@ gradlew, gradlew.bat, gradle/wrapper/   // pinned 8.10.x
 
 messaging-core/          API + SPI + config + DefaultMessageBus.  Dep: slf4j-api only
 messaging-conformance/   Abstract suite (java-test-fixtures) + faulty in-memory transports
-messaging-jms/           jakarta.jms-api only.  Fixtures: Artemis AND IBM MQ
+messaging-jms/           jakarta.jms-api only. Fixtures: Artemis AND IBM MQ — implemented, see 2026-09-13-jms-adapter-design.md
 messaging-kafka/         kafka-clients
 messaging-codec-json/    Codec<T> via Jackson
 messaging-sample-app/    CLI that runs the conformance suite per transport and prints PASS/FAIL (see its README)
@@ -143,7 +143,7 @@ The review also asked for out-of-order-completion and multiple-in-flight-per-ses
 
 - `./gradlew test` — compiles everything, runs unit tests, and runs the negative-control meta-test. No Docker.
 - `./gradlew integrationTest` — the conformance suite against Artemis, IBM MQ, and Kafka. **Docker must be running.** All three must pass every scenario; a skipped scenario fails the build mechanically, not by convention.
-- `./gradlew :messaging-sample-app:run` — manual validation: runs the conformance suite against the in-memory transport (must pass every scenario) and each faulty transport (must fail its `EXPECTED_FAILURE` scenario); exits non-zero otherwise. Broker adapters will register into it against an external broker URL (spec: `docs/superpowers/specs/2026-09-13-sample-app-design.md`).
+- `./gradlew :messaging-sample-app:run` — manual validation: runs the conformance suite against the in-memory transport (must pass every scenario) and each faulty transport (must fail its `EXPECTED_FAILURE` scenario); exits non-zero otherwise. `jms-artemis`/`jms-ibm-mq` register against an external broker via `--url`/`--admin-url` (spec: `docs/superpowers/specs/2026-09-13-sample-app-design.md`, `docs/superpowers/specs/2026-09-13-jms-adapter-design.md`); Kafka's target will follow the same shape.
 - **Cross-transport portability check** — one example that publishes and subscribes, run unchanged against all three brokers by changing only `messaging.url` and the adapter jar on the classpath. This is the product claim; verify it directly rather than inferring it from compilation.
 - **Contract cross-check** — every scenario in the suite traces to a section of the design doc, and every observable rule in §A–§M has a scenario. A rule with no test is either unenforced or shouldn't be in the contract.
 

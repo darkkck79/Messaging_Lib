@@ -1,5 +1,10 @@
 # Messaging_Lib Implementation Plan
 
+> **Tasks 5-6 (JMS adapter) are superseded** by `docs/superpowers/specs/2026-09-13-jms-adapter-design.md`
+> and `docs/superpowers/plans/2026-09-14-jms-adapter-plan.md`, which implement the JMS
+> adapter without the provider classes/constants this file's sketch used. Do not follow
+> Tasks 5-6 below.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a Java 21 messaging library that wraps Kafka and JMS (Artemis, IBM MQ) behind one API, proving transport-swap portability with a shared conformance suite.

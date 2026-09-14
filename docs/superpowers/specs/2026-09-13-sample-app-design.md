@@ -69,7 +69,15 @@ Otherwise it's 1, and `fault MISSED` is printed. The app therefore follows the #
 
 ## Adapter slot (sub-projects 2+)
 
-An adapter adds a registry entry whose suite class builds its bus with `Messaging.connect` against an external broker URL. The first adapter adds the CLI option for that URL and decides how it reaches the suite; the app has no `--url` until then (YAGNI). Only `AbstractMessagingConformanceTest` scenarios run against external brokers. How destinations get named and provisioned on each broker (for example IBM MQ's `DEV.QUEUE.1`) is decided in that adapter's spec.
+**Decided by the JMS adapter spec (`2026-09-13-jms-adapter-design.md`):** `SampleApp.Target`
+gained a `broker` flag. Broker targets (`jms-artemis`, `jms-ibm-mq`) require both `--url
+<jms://user:pass@host:port>` and `--admin-url <http(s)://user:pass@host:port>` — missing
+either exits 1 — and are excluded from `--transport all`, so the no-argument run stays
+Docker-free. Each broker target's suite class (`ExternalArtemisConformance`,
+`ExternalIbmMqConformance`, both in `messaging-jms`'s test fixtures) reads those two values
+back from the `messaging.sample.url` / `messaging.sample.admin-url` system properties that
+`SampleApp` sets before running the suite, and provisions destinations through the
+matching `BrokerAdmin`. Kafka's target will follow the same shape when its spec lands.
 
 ## Error handling
 

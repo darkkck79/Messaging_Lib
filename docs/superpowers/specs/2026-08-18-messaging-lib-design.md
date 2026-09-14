@@ -67,6 +67,12 @@ Cross-thread calls permitted anywhere in the library: `KafkaConsumer.wakeup()`, 
 | Kafka | One `KafkaConsumer` in the group, with its own poll thread | Partition count — extra units idle |
 | JMS | One transacted `Session` with one `MessageConsumer` | None |
 
+**JMS topics (added by the JMS adapter spec):** a topic subscription is one shared
+non-durable subscription (`createSharedConsumer`); its `concurrency` consumer units
+compete inside that one subscription, so the subscription sees each message once
+regardless of concurrency, while separate `subscribe` calls on the same topic still each
+get their own copy.
+
 **Ordering:** guaranteed per Kafka partition, and per JMS consumer unit. Never guaranteed across partitions, across consumer units, or across a redelivery. At `concurrency = 1` against a single-partition topic, total order holds.
 
 This constraint is what makes at-least-once safe on Kafka. A Kafka committed offset identifies the *next* record to consume, so committing offset N+1 while record N is still in flight or has permanently failed silently skips N on restart — turning the advertised at-least-once into at-most-once. Allowing only one in-flight record per partition removes the possibility structurally. **The contiguous-success watermark algorithm is explicitly not built**; it is the correct fix for parallel in-partition processing, and it is unnecessary because parallel in-partition processing is not offered.
@@ -118,6 +124,16 @@ Conformance fixtures provision destinations **outside the library API** — brok
 
 **Cross-type name reuse is unsupported.** `Topic("orders")` and `Queue("orders")` resolve to the same Kafka topic but to entirely different constructs on JMS. The library neither rejects nor namespaces this; the behaviour is undefined and documented as such.
 
+**What "missing" means per JMS provider (JMS adapter spec):**
+
+| Provider | Missing queue | Missing/unauthorised topic |
+|---|---|---|
+| Artemis (auto-create disabled) | Rejected | Rejected |
+| IBM MQ | Rejected — reason code 2085, or 2035 outside `DEV.**` | Rejected — reason code 2035 if the topic string is outside the app's authorised tree |
+
+Either way, the publish or subscribe future fails with a `MessagingException` naming the
+destination, with the provider's own exception as cause.
+
 ## G. The message model
 
 ```java
@@ -166,6 +182,11 @@ interface MessagingListener {
 - **A listener that throws is caught, logged at WARN, and cannot change a publish or ack outcome.** Observability never alters behaviour. The conformance suite asserts this with a listener that throws on every callback.
 - A no-op default instance is supplied; a `null` listener is never passed to an adapter.
 
+**JMS reconnection (JMS adapter spec):** the Jakarta Messaging API exposes no reconnect
+event, so the JMS adapter never reports `RECONNECTED`. `DISCONNECTED` fires only when the
+client's own reconnect logic (Artemis `reconnectAttempts`, IBM MQ `WMQ_CLIENT_RECONNECT`)
+gives up and calls the registered `ExceptionListener`.
+
 ## I. Provider discovery and configuration
 
 **Discovery.** `Messaging.connect(config)` resolves the `TransportProvider` whose `scheme()` matches the config URI, via `ServiceLoader` over the thread-context class loader, falling back to `Messaging`'s own loader.
@@ -187,6 +208,17 @@ Module-path and custom-class-loader support beyond the TCCL fallback is out of s
 | `messaging.consumer.concurrency` | `1` | See §C |
 | `messaging.connect-timeout` | `PT10S` | |
 | `messaging.close-timeout` | `PT30S` | See §J |
+| `messaging.jms.connection-factory` | — (required for the `jms` scheme) | Fully-qualified class name of a `jakarta.jms.ConnectionFactory` implementation, instantiated via its public no-arg constructor |
+
+Every other `messaging.jms.*` key is applied to that factory instance as a public
+single-argument bean setter (`messaging.jms.brokerURL` → `setBrokerURL`, coercing the
+string value to the setter's parameter type: `String`, `int`/`Integer`, `long`/`Long`, or
+`boolean`/`Boolean`). An unrecognised setter, or a value that can't be coerced, fails fast
+naming the key. `messaging.jms.deliveryMode` set to `NON_PERSISTENT` or `1` is rejected
+before setter lookup (§E). The `messaging.url`'s host and port are **not used** by the JMS
+adapter — only its userinfo (for `createConnection(user, password)`) — because each
+provider's own broker-address format differs (Artemis `brokerURL`, IBM MQ
+`hostName`/`port`/`channel`) and lives in the passthrough properties instead.
 
 - Unknown `messaging.*` keys **fail fast** — a typo in a core key is a bug, not a passthrough.
 - Unknown `messaging.<scheme>.*` keys pass through to the native client untouched, minus the prefix, subject to the §E rejections.
