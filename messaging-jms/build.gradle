@@ -26,6 +26,7 @@ dependencies {
     testFixturesRuntimeOnly libs.ibm.mq.jakarta.client
 
     integrationTestImplementation testFixtures(project(':messaging-conformance'))
+    integrationTestImplementation testFixtures(project(':messaging-jms'))
     integrationTestImplementation platform(libs.testcontainers.bom)
     integrationTestImplementation libs.testcontainers.junit.jupiter
     integrationTestImplementation libs.testcontainers.toxiproxy
