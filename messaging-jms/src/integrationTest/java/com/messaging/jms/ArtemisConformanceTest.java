@@ -1,12 +1,10 @@
 package com.messaging.jms;
 
-import com.messaging.*;
-import com.messaging.conformance.AbstractMessagingConformanceTest;
+import com.messaging.Messaging;
+import com.messaging.MessageBus;
 import com.messaging.conformance.BusSettings;
-import com.messaging.config.MessagingConfig;
 import com.messaging.jms.fixtures.ArtemisAdmin;
-import com.messaging.jms.fixtures.BrokerAdmin;
-import com.messaging.jms.fixtures.JmsRedeliveredScenario;
+import com.messaging.jms.fixtures.ArtemisBroker;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.BindMode;
@@ -16,7 +14,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
-import java.util.UUID;
 
 /**
  * Proves the JMS adapter against a real Artemis broker (§B, §C, §D, §E, §F, §G, §J), connecting
@@ -36,7 +33,7 @@ import java.util.UUID;
  * {@code DISCONNECTED} notification, which is unit-testable without a real network cut.
  */
 @Testcontainers
-class ArtemisConformanceTest extends AbstractMessagingConformanceTest implements JmsRedeliveredScenario {
+class ArtemisConformanceTest extends AbstractJmsBrokerConformanceTest {
 
     private static final GenericContainer<?> ARTEMIS = new GenericContainer<>(
             DockerImageName.parse("apache/activemq-artemis:2.43.0"))
@@ -47,8 +44,6 @@ class ArtemisConformanceTest extends AbstractMessagingConformanceTest implements
             "/var/lib/artemis-instance/etc-override/broker.xml", BindMode.READ_ONLY)
         .waitingFor(Wait.forHttp("/console/").forPort(8161).forStatusCodeMatching(code -> code < 500)
             .withStartupTimeout(Duration.ofSeconds(120)));
-
-    private static BrokerAdmin admin;
 
     @BeforeAll
     static void startContainer() {
@@ -64,24 +59,7 @@ class ArtemisConformanceTest extends AbstractMessagingConformanceTest implements
 
     @Override
     protected MessageBus createBus(BusSettings settings) {
-        String host = ARTEMIS.getHost();
-        int port = ARTEMIS.getMappedPort(61616);
-        var config = MessagingConfig.builder()
-            .url("jms://artemis:artemis@" + host + ":" + port)
-            .clientId("artemis-test-" + UUID.randomUUID())
-            .concurrency(settings.concurrency())
-            .connectTimeout(Duration.ofSeconds(20))
-            .closeTimeout(settings.closeTimeout())
-            .listener(settings.listener())
-            .property("connection-factory", "org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory")
-            .property("brokerURL", "tcp://" + host + ":" + port)
-            .build();
+        var config = ArtemisBroker.config(ARTEMIS.getHost(), ARTEMIS.getMappedPort(61616), "artemis", "artemis", settings);
         return Messaging.connect(config);
     }
-
-    @Override protected Destination provisionTopic(String name) { return admin.createTopic(name); }
-    @Override protected Destination provisionQueue(String name) { return admin.createQueue(name); }
-
-    @Override public MessageBus jmsBus() { return bus; }
-    @Override public Destination jmsQueue(String name) { return provisionQueue(name); }
 }

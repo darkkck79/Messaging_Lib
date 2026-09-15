@@ -1,12 +1,10 @@
 package com.messaging.jms;
 
-import com.messaging.*;
-import com.messaging.conformance.AbstractMessagingConformanceTest;
+import com.messaging.Messaging;
+import com.messaging.MessageBus;
 import com.messaging.conformance.BusSettings;
-import com.messaging.jms.fixtures.BrokerAdmin;
 import com.messaging.jms.fixtures.IbmMqAdmin;
 import com.messaging.jms.fixtures.IbmMqBroker;
-import com.messaging.jms.fixtures.JmsRedeliveredScenario;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.GenericContainer;
@@ -30,7 +28,7 @@ import org.testcontainers.utility.DockerImageName;
  * changing the adapter to special-case IBM MQ.
  */
 @Testcontainers
-class IbmMqConformanceTest extends AbstractMessagingConformanceTest implements JmsRedeliveredScenario {
+class IbmMqConformanceTest extends AbstractJmsBrokerConformanceTest {
 
     private static final GenericContainer<?> IBM_MQ = new GenericContainer<>(
             DockerImageName.parse("icr.io/ibm-messaging/mq:9.4.5.1-r1"))
@@ -39,8 +37,6 @@ class IbmMqConformanceTest extends AbstractMessagingConformanceTest implements J
         .withEnv("MQ_QMGR_NAME", "QM1")
         .withEnv("MQ_APP_PASSWORD", "passw0rd")
         .waitingFor(Wait.forLogMessage(".*QMNAME\\(QM1\\).*STATUS\\(Running\\).*\\n", 1));
-
-    private static BrokerAdmin admin;
 
     @BeforeAll
     static void startContainer() {
@@ -58,10 +54,4 @@ class IbmMqConformanceTest extends AbstractMessagingConformanceTest implements J
         var config = IbmMqBroker.config(IBM_MQ.getHost(), IBM_MQ.getMappedPort(1414), "app", "passw0rd", settings);
         return Messaging.connect(config);
     }
-
-    @Override protected Destination provisionTopic(String name) { return admin.createTopic(name); }
-    @Override protected Destination provisionQueue(String name) { return admin.createQueue(name); }
-
-    @Override public MessageBus jmsBus() { return bus; }
-    @Override public Destination jmsQueue(String name) { return provisionQueue(name); }
 }
